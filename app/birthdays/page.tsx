@@ -1,0 +1,196 @@
+"use client";
+
+import { useState } from "react";
+import { useEvents } from "../events-context";
+
+const CURRENT_YEAR = 2026;
+
+const birthdayEmojiOptions = [
+  "😎","🥸","🤠","🥳","😷","🤡","💩","👽","😈","💀",
+  "🤖","👶","🧒","👧","👱","👨","🧔‍♂️","🧔‍♀️","👨‍🦰","👨‍🦱",
+  "👨‍🦳","👨‍🦲","👩","👩‍🦰","🧑‍🦰","🧑‍🦱","👩‍🦳","🧑‍🦳","👱‍♂️","👴",
+  "👵","🧓","👨‍🚀","🥷","👰","👳‍♂️","🤵‍♂️","👸","🫅","🦹‍♀️",
+  "🧙‍♂️","🧟‍♂️","🐕","🐶","🐩","🐈","🐈‍⬛","😺","🐃","🐄",
+  "🐿","🦫","🦔","🐧","🦭","🐙","🐛","🐸","🦐","🪆",
+];
+
+export default function BirthdaysPage() {
+  const { birthdays, addBirthday, removeBirthday } = useEvents();
+  const [name, setName] = useState("");
+  const [month, setMonth] = useState("");
+  const [day, setDay] = useState("");
+  const [year, setYear] = useState("");
+  const [personEmoji, setPersonEmoji] = useState("👨");
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const handleAddBirthday = () => {
+    const trimmedName = name.trim();
+    const numericMonth = Number(month);
+    const numericDay = Number(day);
+    const numericYear = Number(year);
+
+    if (!trimmedName || !numericMonth || !numericDay || !numericYear) return;
+    if (numericMonth < 1 || numericMonth > 12) return;
+    if (numericDay < 1 || numericDay > 31) return;
+    if (numericYear < 1900 || numericYear > CURRENT_YEAR) return;
+
+    const monthNames = [
+      "",
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December",
+    ];
+
+    addBirthday(
+      trimmedName,
+      `${monthNames[numericMonth]} ${numericDay}`,
+      numericMonth,
+      numericDay,
+      numericYear,
+      personEmoji
+    );
+
+    setName("");
+    setMonth("");
+    setDay("");
+    setYear("");
+    setPersonEmoji("👨");
+    setPickerOpen(false);
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-pink-50 px-4 py-5 text-slate-900 sm:p-6">
+      <div className="mb-4">
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Birthdays
+        </h1>
+        <p className="mt-1 text-sm text-slate-700 sm:text-base">
+          Keep track of birthdays, ages, and personal emoji markers.
+        </p>
+      </div>
+
+      <div className="mb-6 rounded-[1.6rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
+        <h2 className="text-xl font-bold text-slate-900">Add Birthday</h2>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">
+              Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Dad"
+              className="w-full rounded-2xl border border-black/10 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-orange-300"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Person emoji
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setPickerOpen((prev) => !prev)}
+              className="flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-left"
+            >
+              <span className="text-2xl">{personEmoji}</span>
+              <span className="text-sm font-medium text-slate-700">
+                {pickerOpen ? "Close emoji picker" : "Choose emoji"}
+              </span>
+            </button>
+
+            {pickerOpen && (
+              <div className="mt-3 rounded-2xl border border-black/10 bg-slate-50 p-3">
+                <div className="grid grid-cols-10 gap-2">
+                  {birthdayEmojiOptions.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setPersonEmoji(emoji);
+                        setPickerOpen(false);
+                      }}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl transition ${
+                        personEmoji === emoji
+                          ? "bg-pink-100 ring-2 ring-pink-200"
+                          : "bg-white hover:bg-slate-100"
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              placeholder="Month (7)"
+              className="rounded-2xl border border-black/10 px-4 py-3 text-sm"
+            />
+            <input
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+              placeholder="Day (27)"
+              className="rounded-2xl border border-black/10 px-4 py-3 text-sm"
+            />
+          </div>
+
+          <input
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            placeholder="Birth year (1956)"
+            className="w-full rounded-2xl border border-black/10 px-4 py-3 text-sm"
+          />
+
+          <button
+            onClick={handleAddBirthday}
+            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Add Birthday
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {birthdays.length === 0 ? (
+          <div className="rounded-[1.6rem] bg-white p-5 text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
+            No birthdays added yet.
+          </div>
+        ) : (
+          birthdays.map((birthday) => {
+            const turningAge = CURRENT_YEAR - birthday.year;
+
+            return (
+              <div
+                key={birthday.id}
+                className="flex items-center justify-between rounded-[1.6rem] bg-white p-4 shadow-sm ring-1 ring-black/5"
+              >
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+                    {birthday.personEmoji} {birthday.name}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-700">{birthday.date}</p>
+                  <p className="mt-1 text-sm font-semibold text-pink-600">
+                    Turning {turningAge}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => removeBirthday(birthday.id)}
+                  className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </main>
+  );
+}
