@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { events as initialEvents } from "./discover/events";
 
 type EventItem = {
@@ -91,6 +97,12 @@ type EventsContextType = {
   removeManualItem: (id: number) => void;
 };
 
+const EVENTS_KEY = "good-times-calendar-events-v3";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v3";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v3";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v3";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v3";
+
 const seededEvents: EventItem[] = initialEvents.map((event) => ({
   ...event,
   featured: true,
@@ -157,6 +169,20 @@ const initialBirthdays: BirthdayItem[] = [
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
 
+function readArrayFromStorage<T>(key: string): T[] | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+
+    return parsed as T[];
+  } catch {
+    return null;
+  }
+}
+
 export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<EventItem[]>(seededEvents);
   const [foodDeals, setFoodDeals] = useState<FoodDealItem[]>(initialFoodDeals);
@@ -165,6 +191,54 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [foodDealCalendarSelections, setFoodDealCalendarSelections] = useState<
     FoodDealCalendarSelection[]
   >([]);
+  const [storageReady, setStorageReady] = useState(false);
+
+  useEffect(() => {
+    const storedEvents = readArrayFromStorage<EventItem>(EVENTS_KEY);
+    const storedFoodDeals = readArrayFromStorage<FoodDealItem>(FOOD_DEALS_KEY);
+    const storedBirthdays = readArrayFromStorage<BirthdayItem>(BIRTHDAYS_KEY);
+    const storedManualItems = readArrayFromStorage<ManualItem>(MANUAL_ITEMS_KEY);
+    const storedHappyHourSelections =
+      readArrayFromStorage<FoodDealCalendarSelection>(HAPPY_HOUR_KEY);
+
+    if (storedEvents) setEvents(storedEvents);
+    if (storedFoodDeals) setFoodDeals(storedFoodDeals);
+    if (storedBirthdays) setBirthdays(storedBirthdays);
+    if (storedManualItems) setManualItems(storedManualItems);
+    if (storedHappyHourSelections) {
+      setFoodDealCalendarSelections(storedHappyHourSelections);
+    }
+
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+  }, [events, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(FOOD_DEALS_KEY, JSON.stringify(foodDeals));
+  }, [foodDeals, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(BIRTHDAYS_KEY, JSON.stringify(birthdays));
+  }, [birthdays, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(MANUAL_ITEMS_KEY, JSON.stringify(manualItems));
+  }, [manualItems, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(
+      HAPPY_HOUR_KEY,
+      JSON.stringify(foodDealCalendarSelections)
+    );
+  }, [foodDealCalendarSelections, storageReady]);
 
   const toggleSaved = (id: number) => {
     setEvents((prev) =>
