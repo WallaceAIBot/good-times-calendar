@@ -87,6 +87,14 @@ type EventsContextType = {
     year: number,
     personEmoji: string
   ) => void;
+  updateBirthday: (
+    id: number,
+    name: string,
+    month: number,
+    day: number,
+    year: number,
+    personEmoji: string
+  ) => void;
   removeBirthday: (id: number) => void;
   addManualItem: (
     month: number,
@@ -94,6 +102,7 @@ type EventsContextType = {
     text: string,
     icon: string
   ) => void;
+  updateManualItem: (id: number, text: string, icon: string) => void;
   removeManualItem: (id: number) => void;
 };
 
@@ -165,6 +174,22 @@ const initialBirthdays: BirthdayItem[] = [
     icon: "🎂",
     personEmoji: "🐱",
   },
+];
+
+const monthNames = [
+  "",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
@@ -314,6 +339,33 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
+  const updateBirthday = (
+    id: number,
+    name: string,
+    month: number,
+    day: number,
+    year: number,
+    personEmoji: string
+  ) => {
+    const date = `${monthNames[month]} ${day}`;
+
+    setBirthdays((prev) =>
+      prev.map((birthday) =>
+        birthday.id === id
+          ? {
+              ...birthday,
+              name,
+              month,
+              day,
+              year,
+              date,
+              personEmoji,
+            }
+          : birthday
+      )
+    );
+  };
+
   const removeBirthday = (id: number) => {
     setBirthdays((prev) => prev.filter((birthday) => birthday.id !== id));
   };
@@ -337,6 +389,23 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         icon,
       },
     ]);
+  };
+
+  const updateManualItem = (id: number, text: string, icon: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    setManualItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              text: trimmed,
+              icon,
+            }
+          : item
+      )
+    );
   };
 
   const removeManualItem = (id: number) => {
@@ -398,8 +467,10 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         toggleFoodDealDayCalendar,
         isFoodDealDayInCalendar,
         addBirthday,
+        updateBirthday,
         removeBirthday,
         addManualItem,
+        updateManualItem,
         removeManualItem,
       }}
     >
