@@ -1,27 +1,416 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useEvents } from "./events-context";
 
-const CURRENT_YEAR = 2026;
+const weekdayShortNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const weekdayLongNames = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
-function getFoodEmoji(title: string) {
-  if (title.includes("St. Charles")) return "🍔";
-  if (title.includes("Gia Mia")) return "🍕";
-  if (title.includes("Moto Imoto")) return "🍣";
-  return "🍽️";
+type DashboardItem = {
+  title: string;
+  details: string;
+  icon: string;
+  type: "birthday" | "event" | "food" | "manual";
+  sortDate?: Date;
+  isPreferenceMatch?: boolean;
+};
+
+function getNextOccurrence(month: number, day: number, now: Date) {
+  const currentYear = now.getFullYear();
+  const thisYearDate = new Date(currentYear, month - 1, day);
+
+  if (thisYearDate >= new Date(currentYear, now.getMonth(), now.getDate())) {
+    return thisYearDate;
+  }
+
+  return new Date(currentYear + 1, month - 1, day);
+}
+
+function formatMonthDay(date: Date) {
+  return `${monthNames[date.getMonth()]} ${date.getDate()}`;
+}
+
+function getDayBadgeLabel(date: Date, today: Date) {
+  const diffMs =
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+    new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  return weekdayLongNames[date.getDay()];
+}
+
+function getFoodTypeFromDeal(title: string, details: string) {
+  const combined = `${title} ${details}`.toLowerCase();
+
+  if (combined.includes("pizza")) return "Pizza";
+  if (combined.includes("burger")) return "Burgers";
+  if (
+    combined.includes("taco") ||
+    combined.includes("mex") ||
+    combined.includes("burrito")
+  )
+    return "Mexican";
+  if (
+    combined.includes("sushi") ||
+    combined.includes("ramen") ||
+    combined.includes("asian")
+  )
+    return "Asian";
+  if (
+    combined.includes("bar") ||
+    combined.includes("happy hour") ||
+    combined.includes("taproom")
+  )
+    return "Bars";
+  if (combined.includes("coffee") || combined.includes("espresso"))
+    return "Coffee";
+
+  return "";
+}
+
+function getEventPreferenceScore(
+  category: string,
+  preferredCategories: string[]
+): number {
+  return preferredCategories.includes(category) ? 2 : 0;
+}
+
+function getFoodPreferenceScore(
+  title: string,
+  details: string,
+  preferredFood: string[]
+): number {
+  const foodType = getFoodTypeFromDeal(title, details);
+  return foodType && preferredFood.includes(foodType) ? 2 : 0;
 }
 
 export default function HomePage() {
   const {
+    events,
+    foodDeals,
+    birthdays,
+    manualItems,
+    foodDealCalendarSelections,
+    settings,
     starredCount,
     calendarCount,
     foodDealsCount,
     birthdaysCount,
-    featuredEvents,
-    featuredFoodDeal,
-    upcomingBirthdays,
   } = useEvents();
+
+  const now = new Date();
+  const todayMonth = now.getMonth() + 1;
+  const todayDay = now.getDate();
+  const todayWeekdayShort = weekdayShortNames[now.getDay()];
+  const todayLabel = `${weekdayLongNames[now.getDay()]}, ${monthNames[now.getMonth()]} ${todayDay}`;
+
+  const preferredCategories = settings.preferredCategories ?? [];
+  const preferredFood = settings.preferredFood ?? [];
+
+  const todayBirthdays = birthdays.filter(
+    (birthday) => birthday.month === todayMonth && birthday.day === todayDay
+  );
+
+  const todayEvents = events.filter(
+    (event) => event.month === todayMonth && event.day === todayDay
+  );
+
+  const todayManualItems = manualItems.filter(
+    (item) => item.month === todayMonth && item.day === todayDay
+  );
+
+  const todayFoodDeals = useMemo(() => {
+    const regularDeals = foodDeals
+      .filter((deal) => deal.days.includes(todayWeekdayShort))
+      .map((deal) => ({
+        title: deal.title,
+        details: deal.details,
+        icon: deal.icon ?? "🍽️",
+        score: getFoodPreferenceScore(deal.title, deal.details, preferredFood),
+      }));
+
+    const happyHourDeals = foodDealCalendarSelections
+      .filter((selection) => selection.day === todayWeekdayShort)
+      .map((selection) => {
+        const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
+        if (!matchingDeal) return null;
+
+        return {
+          title: matchingDeal.title,
+          details: `${selection.day} Happy Hour · ${matchingDeal.details}`,
+          icon: matchingDeal.icon ?? "🍸",
+          score: getFoodPreferenceScore(
+            matchingDeal.title,
+            matchingDeal.details,
+            preferredFood
+          ),
+        };
+      })
+      .filter(Boolean) as {
+      title: string;
+      details: string;
+      icon: string;
+      score: number;
+    }[];
+
+    return [...regularDeals, ...happyHourDeals].sort((a, b) => b.score - a.score);
+  }, [foodDeals, foodDealCalendarSelections, todayWeekdayShort, preferredFood]);
+
+  const todayItems: DashboardItem[] = [
+    ...todayBirthdays.map((birthday) => ({
+      title: `${birthday.name} ${birthday.personEmoji}`,
+      details: `Turning ${now.getFullYear() - birthday.year}`,
+      icon: "🎂",
+      type: "birthday" as const,
+    })),
+    ...todayEvents.map((event) => ({
+      title: event.title,
+      details: event.details,
+      icon: event.icon ?? "🎉",
+      type: "event" as const,
+      isPreferenceMatch:
+        getEventPreferenceScore(event.category, preferredCategories) > 0,
+    })),
+    ...todayFoodDeals.map((deal) => ({
+      title: deal.title,
+      details: deal.details,
+      icon: deal.icon,
+      type: "food" as const,
+      isPreferenceMatch: deal.score > 0,
+    })),
+    ...todayManualItems.map((item) => ({
+      title: item.text,
+      details: "Manual reminder",
+      icon: item.icon,
+      type: "manual" as const,
+    })),
+  ];
+
+  const tonightSuggestion = useMemo(() => {
+    const plannedEvent = todayEvents.find((event) => event.calendar);
+    if (plannedEvent) {
+      return {
+        title: plannedEvent.title,
+        details: "Already on your calendar for today",
+        icon: plannedEvent.icon ?? "🎉",
+        badge: "Planned Tonight",
+        isPreferenceMatch:
+          getEventPreferenceScore(plannedEvent.category, preferredCategories) > 0,
+      };
+    }
+
+    const starredRanked = todayEvents
+      .filter((event) => event.saved)
+      .map((event) => ({
+        ...event,
+        preferenceScore: getEventPreferenceScore(
+          event.category,
+          preferredCategories
+        ),
+      }))
+      .sort((a, b) => b.preferenceScore - a.preferenceScore);
+
+    if (starredRanked.length > 0) {
+      return {
+        title: starredRanked[0].title,
+        details: "You starred this and it’s happening today",
+        icon: starredRanked[0].icon ?? "⭐",
+        badge:
+          starredRanked[0].preferenceScore > 0
+            ? "Recommended for You"
+            : "Watchlist Pick",
+        isPreferenceMatch: starredRanked[0].preferenceScore > 0,
+      };
+    }
+
+    if (todayFoodDeals.length > 0) {
+      return {
+        title: todayFoodDeals[0].title,
+        details: todayFoodDeals[0].details,
+        icon: todayFoodDeals[0].icon,
+        badge:
+          todayFoodDeals[0].score > 0
+            ? "Recommended for You"
+            : "Easy Tonight Option",
+        isPreferenceMatch: todayFoodDeals[0].score > 0,
+      };
+    }
+
+    const nextRankedStarred = events
+      .filter((event) => event.saved)
+      .map((event) => ({
+        ...event,
+        eventDate: new Date(now.getFullYear(), event.month - 1, event.day),
+        preferenceScore: getEventPreferenceScore(
+          event.category,
+          preferredCategories
+        ),
+      }))
+      .sort((a, b) => {
+        if (b.preferenceScore !== a.preferenceScore) {
+          return b.preferenceScore - a.preferenceScore;
+        }
+        return a.eventDate.getTime() - b.eventDate.getTime();
+      })[0];
+
+    if (nextRankedStarred) {
+      return {
+        title: nextRankedStarred.title,
+        details: `${monthNames[nextRankedStarred.month - 1]} ${nextRankedStarred.day} · ${nextRankedStarred.details}`,
+        icon: nextRankedStarred.icon ?? "⭐",
+        badge:
+          nextRankedStarred.preferenceScore > 0
+            ? "Recommended for You"
+            : "Next Good Option",
+        isPreferenceMatch: nextRankedStarred.preferenceScore > 0,
+      };
+    }
+
+    return {
+      title: "Nothing planned tonight",
+      details: "Star an event or add a food deal to start building your week.",
+      icon: "✨",
+      badge: "Open Night",
+      isPreferenceMatch: false,
+    };
+  }, [todayEvents, todayFoodDeals, events, now, preferredCategories]);
+
+  const weekendItems = useMemo(() => {
+    const upcomingWeekendDates: Date[] = [];
+
+    for (let i = 0; i < 14; i += 1) {
+      const candidate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + i
+      );
+      const day = candidate.getDay();
+
+      if (day === 6 || day === 0) {
+        upcomingWeekendDates.push(candidate);
+      }
+
+      if (upcomingWeekendDates.length === 2) break;
+    }
+
+    const items: DashboardItem[] = [];
+
+    upcomingWeekendDates.forEach((date) => {
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+
+      birthdays
+        .filter((birthday) => birthday.month === month && birthday.day === day)
+        .forEach((birthday) => {
+          items.push({
+            title: `${birthday.name} ${birthday.personEmoji}`,
+            details: `${formatMonthDay(date)} · Birthday`,
+            icon: "🎂",
+            type: "birthday",
+            sortDate: date,
+          });
+        });
+
+      events
+        .filter((event) => event.month === month && event.day === day)
+        .forEach((event) => {
+          items.push({
+            title: event.title,
+            details: `${formatMonthDay(date)} · ${event.details}`,
+            icon: event.icon ?? "🎉",
+            type: "event",
+            sortDate: date,
+            isPreferenceMatch:
+              getEventPreferenceScore(event.category, preferredCategories) > 0,
+          });
+        });
+
+      manualItems
+        .filter((item) => item.month === month && item.day === day)
+        .forEach((item) => {
+          items.push({
+            title: item.text,
+            details: `${formatMonthDay(date)} · Manual reminder`,
+            icon: item.icon,
+            type: "manual",
+            sortDate: date,
+          });
+        });
+    });
+
+    return items
+      .sort((a, b) => {
+        const aTime = a.sortDate?.getTime() ?? 0;
+        const bTime = b.sortDate?.getTime() ?? 0;
+        if (aTime !== bTime) return aTime - bTime;
+
+        const aPref = a.isPreferenceMatch ? 1 : 0;
+        const bPref = b.isPreferenceMatch ? 1 : 0;
+        if (bPref !== aPref) return bPref - aPref;
+
+        const priority =
+          (a.type === "birthday" ? 0 : a.type === "event" ? 1 : a.type === "food" ? 2 : 3) -
+          (b.type === "birthday" ? 0 : b.type === "event" ? 1 : b.type === "food" ? 2 : 3);
+
+        if (priority !== 0) return priority;
+        return a.title.localeCompare(b.title);
+      })
+      .slice(0, 4);
+  }, [birthdays, events, manualItems, now, preferredCategories]);
+
+  const upcomingBirthdays = useMemo(() => {
+    return [...birthdays]
+      .map((birthday) => ({
+        ...birthday,
+        nextDate: getNextOccurrence(birthday.month, birthday.day, now),
+      }))
+      .sort((a, b) => a.nextDate.getTime() - b.nextDate.getTime())
+      .slice(0, 3);
+  }, [birthdays, now]);
+
+  const featuredEvents = useMemo(() => {
+    return [...events]
+      .map((event) => ({
+        ...event,
+        preferenceScore: getEventPreferenceScore(
+          event.category,
+          preferredCategories
+        ),
+      }))
+      .sort((a, b) => {
+        if (b.preferenceScore !== a.preferenceScore) {
+          return b.preferenceScore - a.preferenceScore;
+        }
+        return Number(b.featured) - Number(a.featured);
+      })
+      .slice(0, 3);
+  }, [events, preferredCategories]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-pink-50 text-slate-900">
@@ -34,8 +423,9 @@ export default function HomePage() {
             Plan more fun together
           </h1>
           <p className="mt-3 text-base text-slate-700">
-            A simple family planner for local events, food deals, birthdays,
-            and fun nights out.
+            {settings.homeLocation
+              ? `Your home base for ${settings.homeLocation}.`
+              : "Your home base for tonight’s plan, this weekend, birthdays, and local fun."}
           </p>
         </header>
 
@@ -43,59 +433,49 @@ export default function HomePage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-orange-500">
-                This Weekend
+                Today
               </p>
               <h2 className="mt-1 text-2xl font-extrabold tracking-tight">
-                Featured Plans
+                {todayLabel}
               </h2>
             </div>
 
             <Link
-              href="/discover"
+              href="/calendar"
               className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white"
             >
-              Explore
+              View Day
             </Link>
           </div>
 
           <div className="mt-4 space-y-3">
-            {featuredEvents.length === 0 ? (
+            {todayItems.length === 0 ? (
               <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-500">
-                No featured events yet.
+                Nothing is scheduled for today yet.
               </div>
             ) : (
-              featuredEvents.map((event) => (
+              todayItems.slice(0, 4).map((item, index) => (
                 <div
-                  key={event.id}
+                  key={`${item.title}-${index}`}
                   className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{event.icon ?? "✨"}</span>
-                        <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
-                          {event.category}
-                        </p>
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">{item.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          {item.title}
+                        </h3>
+                        {item.isPreferenceMatch ? (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                            Match
+                          </span>
+                        ) : null}
                       </div>
-
-                      <h3 className="mt-1 text-lg font-extrabold text-slate-900">
-                        {event.title}
-                      </h3>
-
                       <p className="mt-1 text-sm font-medium text-slate-700">
-                        {event.details}
+                        {item.details}
                       </p>
                     </div>
-
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                        event.badge === "Regional"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-emerald-100 text-emerald-700"
-                      }`}
-                    >
-                      {event.badge}
-                    </span>
                   </div>
                 </div>
               ))
@@ -155,29 +535,76 @@ export default function HomePage() {
 
         <section className="mt-6 rounded-[2rem] bg-white/85 p-5 shadow-sm ring-1 ring-black/5">
           <p className="text-sm font-bold uppercase tracking-wide text-pink-500">
-            Tonight’s Food Pick
+            Tonight’s Suggestion
           </p>
 
-          {featuredFoodDeal ? (
-            <div className="mt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">
-                  {featuredFoodDeal.icon ?? getFoodEmoji(featuredFoodDeal.title)}
+          <div className="mt-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xl">{tonightSuggestion.icon}</span>
+              <h3 className="text-xl font-extrabold">{tonightSuggestion.title}</h3>
+              {tonightSuggestion.isPreferenceMatch ? (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                  Preference Match
                 </span>
-                <h3 className="text-xl font-extrabold">{featuredFoodDeal.title}</h3>
-              </div>
-              <p className="mt-1 text-sm font-medium text-slate-700">
-                {featuredFoodDeal.details}
-              </p>
-              <div className="mt-3 inline-flex rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-green-700">
-                Best deal tonight
-              </div>
+              ) : null}
             </div>
-          ) : (
-            <p className="mt-2 text-sm text-slate-600">
-              No food deal suggestion yet.
+            <p className="mt-1 text-sm font-medium text-slate-700">
+              {tonightSuggestion.details}
             </p>
-          )}
+            <div className="mt-3 inline-flex rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-green-700">
+              {tonightSuggestion.badge}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-[2rem] bg-white/85 p-5 shadow-sm ring-1 ring-black/5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold uppercase tracking-wide text-orange-600">
+              This Weekend
+            </p>
+            <Link href="/discover" className="text-sm font-bold text-orange-600">
+              Explore
+            </Link>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {weekendItems.length === 0 ? (
+              <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-500">
+                Nothing is lined up for this weekend yet.
+              </div>
+            ) : (
+              weekendItems.map((item, index) => (
+                <div
+                  key={`${item.title}-${index}`}
+                  className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">{item.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          {item.title}
+                        </h3>
+                        {item.isPreferenceMatch ? (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                            Match
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-slate-700">
+                        {item.details}
+                      </p>
+                      {item.sortDate ? (
+                        <p className="mt-1 text-xs font-bold uppercase tracking-wide text-orange-600">
+                          {getDayBadgeLabel(item.sortDate, now)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         <section className="mt-6 rounded-[2rem] bg-white/85 p-5 shadow-sm ring-1 ring-black/5">
@@ -212,10 +639,10 @@ export default function HomePage() {
                   </div>
 
                   <p className="mt-1 text-sm font-medium text-slate-700">
-                    {birthday.date}
+                    {formatMonthDay(birthday.nextDate)}
                   </p>
                   <p className="mt-1 text-sm font-bold text-pink-600">
-                    Turning {CURRENT_YEAR - birthday.year}
+                    Turning {birthday.nextDate.getFullYear() - birthday.year}
                   </p>
                 </div>
               ))
