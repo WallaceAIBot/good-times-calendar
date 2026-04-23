@@ -8,6 +8,7 @@ const navItems = [
   { href: "/discover", label: "Discover", icon: "🔎" },
   { href: "/starred", label: "Starred", icon: "⭐" },
   { href: "/calendar", label: "Calendar", icon: "🗓️" },
+  { href: "/import", label: "Import", icon: "📥" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
@@ -15,8 +16,8 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/5 bg-white/95 px-3 py-2 backdrop-blur">
-      <div className="mx-auto flex max-w-md items-center justify-between gap-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-black/5 bg-white/95 px-2 py-2 backdrop-blur">
+      <div className="mx-auto flex max-w-md items-center justify-between gap-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
 
@@ -24,7 +25,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-2 py-2 text-xs font-semibold transition ${
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[11px] font-semibold transition ${
                 isActive
                   ? "bg-orange-100 text-orange-700"
                   : "text-slate-500 hover:bg-slate-100"

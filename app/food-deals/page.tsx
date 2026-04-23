@@ -27,6 +27,7 @@ const pills: FilterPill[] = [
 export default function FoodDealsPage() {
   const {
     foodDeals,
+    importedFoodDealsCount,
     toggleFoodDealCalendar,
     toggleFoodDealDayCalendar,
     isFoodDealDayInCalendar,
@@ -61,6 +62,15 @@ export default function FoodDealsPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-700 sm:text-base">
           Find the best recurring specials and happy hours.
+        </p>
+      </div>
+
+      <div className="mb-4 rounded-[1.4rem] bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <p className="text-xs font-bold uppercase tracking-wide text-purple-600">
+          Data Status
+        </p>
+        <p className="mt-1 text-sm text-slate-700">
+          Imported food deals loaded: {importedFoodDealsCount}
         </p>
       </div>
 
@@ -124,6 +134,12 @@ export default function FoodDealsPage() {
                           Happy Hour
                         </span>
                       ) : null}
+
+                      {deal.sourceType === "imported" ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                          Imported Data
+                        </span>
+                      ) : null}
                     </div>
 
                     <h3 className="mt-2 text-lg font-extrabold text-slate-900 sm:text-xl">
@@ -132,6 +148,11 @@ export default function FoodDealsPage() {
 
                     <p className="mt-1 text-sm font-medium text-slate-700">
                       {deal.details}
+                    </p>
+
+                    <p className="mt-2 text-[11px] font-medium text-slate-500">
+                      Source: {deal.sourceName}
+                      {deal.lastUpdated ? ` · Updated ${deal.lastUpdated}` : ""}
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">

@@ -22,7 +22,7 @@ type EventItem = {
   month: number;
   day: number;
   weekday: string;
-  sourceType: "mock" | "scraped" | "api" | "manual";
+  sourceType: "mock" | "scraped" | "api" | "manual" | "imported";
   sourceName: string;
   sourceUrl?: string;
   lastUpdated: string;
@@ -38,7 +38,7 @@ type FoodDealItem = {
   icon?: string;
   days: string[];
   isHappyHour: boolean;
-  sourceType: "mock" | "scraped" | "api" | "manual";
+  sourceType: "mock" | "scraped" | "api" | "manual" | "imported";
   sourceName: string;
   sourceUrl?: string;
   lastUpdated: string;
@@ -82,6 +82,38 @@ type Settings = {
   preferredFood: string[];
 };
 
+type ImportEventsPayload = {
+  sourceName: string;
+  sourceUrl?: string;
+  events: Array<{
+    category: string;
+    title: string;
+    details: string;
+    badge?: string;
+    icon?: string;
+    featured?: boolean;
+    month: number;
+    day: number;
+    weekday: string;
+    lastUpdated?: string;
+  }>;
+};
+
+type ImportFoodDealsPayload = {
+  sourceName: string;
+  sourceUrl?: string;
+  deals: Array<{
+    category: string;
+    title: string;
+    details: string;
+    icon?: string;
+    featured?: boolean;
+    days: string[];
+    isHappyHour: boolean;
+    lastUpdated?: string;
+  }>;
+};
+
 type EventsContextType = {
   events: EventItem[];
   foodDeals: FoodDealItem[];
@@ -97,6 +129,8 @@ type EventsContextType = {
   featuredEvents: EventItem[];
   featuredFoodDeal: FoodDealItem | null;
   upcomingBirthdays: BirthdayItem[];
+  importedEventsCount: number;
+  importedFoodDealsCount: number;
   toggleSaved: (id: number) => void;
   toggleCalendar: (id: number) => void;
   toggleFoodDealCalendar: (id: number) => void;
@@ -129,15 +163,19 @@ type EventsContextType = {
   ) => void;
   updateManualItem: (id: number, text: string, icon: string) => void;
   removeManualItem: (id: number) => void;
+  importEventsFromJson: (payload: ImportEventsPayload) => void;
+  importFoodDealsFromJson: (payload: ImportFoodDealsPayload) => void;
+  clearImportedEvents: () => void;
+  clearImportedFoodDeals: () => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v6";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v6";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v6";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v6";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v6";
-const FILTERS_KEY = "good-times-calendar-filters-v6";
-const SETTINGS_KEY = "good-times-calendar-settings-v6";
+const EVENTS_KEY = "good-times-calendar-events-v7";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v7";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v7";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v7";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v7";
+const FILTERS_KEY = "good-times-calendar-filters-v7";
+const SETTINGS_KEY = "good-times-calendar-settings-v7";
 
 const initialFilters: CalendarFilters = {
   birthdays: true,
@@ -194,6 +232,28 @@ function readObjectFromStorage<T>(key: string): T | null {
   } catch {
     return null;
   }
+}
+
+function dedupeEvents(items: EventItem[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = `${item.title}|${item.month}|${item.day}|${item.sourceName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeFoodDeals(items: FoodDealItem[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = `${item.title}|${item.category}|${item.sourceName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function EventsProvider({ children }: { children: React.ReactNode }) {
@@ -452,9 +512,80 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     setManualItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const importEventsFromJson = (payload: ImportEventsPayload) => {
+    const importedAt = new Date().toISOString().slice(0, 10);
+
+    const normalized: EventItem[] = payload.events.map((item, index) => ({
+      id: Date.now() + index,
+      category: item.category,
+      title: item.title,
+      details: item.details,
+      saved: false,
+      calendar: false,
+      badge: item.badge ?? "Local",
+      icon: item.icon ?? "✨",
+      featured: item.featured ?? false,
+      month: item.month,
+      day: item.day,
+      weekday: item.weekday,
+      sourceType: "imported",
+      sourceName: payload.sourceName,
+      sourceUrl: payload.sourceUrl ?? "",
+      lastUpdated: item.lastUpdated ?? importedAt,
+    }));
+
+    setEvents((prev) => dedupeEvents([...normalized, ...prev]));
+  };
+
+  const importFoodDealsFromJson = (payload: ImportFoodDealsPayload) => {
+    const importedAt = new Date().toISOString().slice(0, 10);
+
+    const normalized: FoodDealItem[] = payload.deals.map((item, index) => ({
+      id: Date.now() + index,
+      category: item.category,
+      title: item.title,
+      details: item.details,
+      calendar: false,
+      featured: item.featured ?? false,
+      icon: item.icon ?? "🍽️",
+      days: item.days,
+      isHappyHour: item.isHappyHour,
+      sourceType: "imported",
+      sourceName: payload.sourceName,
+      sourceUrl: payload.sourceUrl ?? "",
+      lastUpdated: item.lastUpdated ?? importedAt,
+    }));
+
+    setFoodDeals((prev) => dedupeFoodDeals([...normalized, ...prev]));
+  };
+
+  const clearImportedEvents = () => {
+    setEvents((prev) => prev.filter((event) => event.sourceType !== "imported"));
+  };
+
+  const clearImportedFoodDeals = () => {
+    setFoodDeals((prev) => prev.filter((deal) => deal.sourceType !== "imported"));
+    setFoodDealCalendarSelections((prev) =>
+      prev.filter((selection) => {
+        const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
+        return matchingDeal ? matchingDeal.sourceType !== "imported" : true;
+      })
+    );
+  };
+
   const starredCount = useMemo(
     () => events.filter((event) => event.saved).length,
     [events]
+  );
+
+  const importedEventsCount = useMemo(
+    () => events.filter((event) => event.sourceType === "imported").length,
+    [events]
+  );
+
+  const importedFoodDealsCount = useMemo(
+    () => foodDeals.filter((deal) => deal.sourceType === "imported").length,
+    [foodDeals]
   );
 
   const calendarCount = useMemo(
@@ -503,6 +634,8 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         featuredEvents,
         featuredFoodDeal,
         upcomingBirthdays,
+        importedEventsCount,
+        importedFoodDealsCount,
         toggleSaved,
         toggleCalendar,
         toggleFoodDealCalendar,
@@ -516,6 +649,10 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         addManualItem,
         updateManualItem,
         removeManualItem,
+        importEventsFromJson,
+        importFoodDealsFromJson,
+        clearImportedEvents,
+        clearImportedFoodDeals,
       }}
     >
       {children}
