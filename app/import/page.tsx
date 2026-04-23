@@ -67,10 +67,12 @@ export default function ImportPage() {
   const {
     importedEventsCount,
     importedFoodDealsCount,
+    importedSources,
     importEventsFromJson,
     importFoodDealsFromJson,
     clearImportedEvents,
     clearImportedFoodDeals,
+    clearImportedSource,
   } = useEvents();
 
   const [eventsJson, setEventsJson] = useState(sampleEventsJson);
@@ -133,25 +135,19 @@ export default function ImportPage() {
 
   const handleClearImportedEvents = () => {
     clearImportedEvents();
-    setEventsStatus("Cleared imported events.");
+    setEventsStatus("Cleared all imported events.");
     setEventsStatusType("idle");
   };
 
   const handleClearImportedDeals = () => {
     clearImportedFoodDeals();
-    setDealsStatus("Cleared imported food deals.");
+    setDealsStatus("Cleared all imported food deals.");
     setDealsStatusType("idle");
   };
 
   const statusClass = (type: StatusType) => {
-    if (type === "success") {
-      return "text-green-700";
-    }
-
-    if (type === "error") {
-      return "text-red-700";
-    }
-
+    if (type === "success") return "text-green-700";
+    if (type === "error") return "text-red-700";
     return "text-slate-600";
   };
 
@@ -174,7 +170,7 @@ export default function ImportPage() {
             </p>
             <p className="mt-1 text-2xl font-extrabold">{importedEventsCount}</p>
             <p className="mt-1 text-sm text-slate-600">
-              Discover will prioritize imported items above seeded mock items.
+              Discover prioritizes imported items above seeded mock items.
             </p>
           </div>
 
@@ -184,9 +180,60 @@ export default function ImportPage() {
             </p>
             <p className="mt-1 text-2xl font-extrabold">{importedFoodDealsCount}</p>
             <p className="mt-1 text-sm text-slate-600">
-              Food Deals will label imported rows so you can tell where they came from.
+              Food Deals labels imported rows so you can track source quality.
             </p>
           </div>
+        </div>
+
+        <div className="mb-5 rounded-[1.6rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-xl font-bold">Imported Sources</h2>
+
+          {importedSources.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              No imported sources yet.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {importedSources.map((source) => (
+                <div
+                  key={source.sourceName}
+                  className="rounded-2xl bg-slate-50 p-4 ring-1 ring-black/5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          {source.sourceName}
+                        </h3>
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-700">
+                          {source.sourceType}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-sm text-slate-700">
+                        Events: {source.eventCount} · Food Deals: {source.foodDealCount}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Last Updated: {source.lastUpdated}
+                      </p>
+                      {source.sourceUrl ? (
+                        <p className="mt-1 truncate text-xs text-slate-500">
+                          {source.sourceUrl}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <button
+                      onClick={() => clearImportedSource(source.sourceName)}
+                      className="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700"
+                    >
+                      Clear Source
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-5 rounded-[1.6rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
@@ -314,7 +361,7 @@ export default function ImportPage() {
             <div className="mt-3 space-y-2 text-sm text-slate-700">
               <p>• Imported items are labeled so you can spot them easily.</p>
               <p>• Duplicate imports from the same source are filtered as best as possible.</p>
-              <p>• Imported events appear in Discover, and imported deals appear in Food Deals.</p>
+              <p>• You can now clear one imported source without wiping all imported data.</p>
               <p>• Later we can hook a scraper or API output directly into this same JSON format.</p>
             </div>
           </section>

@@ -114,6 +114,15 @@ type ImportFoodDealsPayload = {
   }>;
 };
 
+type ImportedSourceSummary = {
+  sourceName: string;
+  sourceUrl?: string;
+  sourceType: "events" | "food" | "mixed";
+  eventCount: number;
+  foodDealCount: number;
+  lastUpdated: string;
+};
+
 type EventsContextType = {
   events: EventItem[];
   foodDeals: FoodDealItem[];
@@ -131,6 +140,7 @@ type EventsContextType = {
   upcomingBirthdays: BirthdayItem[];
   importedEventsCount: number;
   importedFoodDealsCount: number;
+  importedSources: ImportedSourceSummary[];
   toggleSaved: (id: number) => void;
   toggleCalendar: (id: number) => void;
   toggleFoodDealCalendar: (id: number) => void;
@@ -167,15 +177,16 @@ type EventsContextType = {
   importFoodDealsFromJson: (payload: ImportFoodDealsPayload) => void;
   clearImportedEvents: () => void;
   clearImportedFoodDeals: () => void;
+  clearImportedSource: (sourceName: string) => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v7";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v7";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v7";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v7";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v7";
-const FILTERS_KEY = "good-times-calendar-filters-v7";
-const SETTINGS_KEY = "good-times-calendar-settings-v7";
+const EVENTS_KEY = "good-times-calendar-events-v8";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v8";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v8";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v8";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v8";
+const FILTERS_KEY = "good-times-calendar-filters-v8";
+const SETTINGS_KEY = "good-times-calendar-settings-v8";
 
 const initialFilters: CalendarFilters = {
   birthdays: true,
@@ -564,12 +575,43 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearImportedFoodDeals = () => {
+    const importedDealIds = new Set(
+      foodDeals
+        .filter((deal) => deal.sourceType === "imported")
+        .map((deal) => deal.id)
+    );
+
     setFoodDeals((prev) => prev.filter((deal) => deal.sourceType !== "imported"));
     setFoodDealCalendarSelections((prev) =>
-      prev.filter((selection) => {
-        const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
-        return matchingDeal ? matchingDeal.sourceType !== "imported" : true;
-      })
+      prev.filter((selection) => !importedDealIds.has(selection.dealId))
+    );
+  };
+
+  const clearImportedSource = (sourceName: string) => {
+    const importedDealIds = new Set(
+      foodDeals
+        .filter(
+          (deal) => deal.sourceType === "imported" && deal.sourceName === sourceName
+        )
+        .map((deal) => deal.id)
+    );
+
+    setEvents((prev) =>
+      prev.filter(
+        (event) =>
+          !(event.sourceType === "imported" && event.sourceName === sourceName)
+      )
+    );
+
+    setFoodDeals((prev) =>
+      prev.filter(
+        (deal) =>
+          !(deal.sourceType === "imported" && deal.sourceName === sourceName)
+      )
+    );
+
+    setFoodDealCalendarSelections((prev) =>
+      prev.filter((selection) => !importedDealIds.has(selection.dealId))
     );
   };
 
@@ -587,6 +629,68 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     () => foodDeals.filter((deal) => deal.sourceType === "imported").length,
     [foodDeals]
   );
+
+  const importedSources = useMemo<ImportedSourceSummary[]>(() => {
+    const map = new Map<string, ImportedSourceSummary>();
+
+    events
+      .filter((event) => event.sourceType === "imported")
+      .forEach((event) => {
+        const existing = map.get(event.sourceName);
+        if (existing) {
+          existing.eventCount += 1;
+          if (event.lastUpdated > existing.lastUpdated) {
+            existing.lastUpdated = event.lastUpdated;
+          }
+          if (!existing.sourceUrl && event.sourceUrl) {
+            existing.sourceUrl = event.sourceUrl;
+          }
+          if (existing.sourceType === "food") {
+            existing.sourceType = "mixed";
+          }
+        } else {
+          map.set(event.sourceName, {
+            sourceName: event.sourceName,
+            sourceUrl: event.sourceUrl ?? "",
+            sourceType: "events",
+            eventCount: 1,
+            foodDealCount: 0,
+            lastUpdated: event.lastUpdated,
+          });
+        }
+      });
+
+    foodDeals
+      .filter((deal) => deal.sourceType === "imported")
+      .forEach((deal) => {
+        const existing = map.get(deal.sourceName);
+        if (existing) {
+          existing.foodDealCount += 1;
+          if (deal.lastUpdated > existing.lastUpdated) {
+            existing.lastUpdated = deal.lastUpdated;
+          }
+          if (!existing.sourceUrl && deal.sourceUrl) {
+            existing.sourceUrl = deal.sourceUrl;
+          }
+          if (existing.sourceType === "events") {
+            existing.sourceType = "mixed";
+          }
+        } else {
+          map.set(deal.sourceName, {
+            sourceName: deal.sourceName,
+            sourceUrl: deal.sourceUrl ?? "",
+            sourceType: "food",
+            eventCount: 0,
+            foodDealCount: 1,
+            lastUpdated: deal.lastUpdated,
+          });
+        }
+      });
+
+    return Array.from(map.values()).sort((a, b) =>
+      b.lastUpdated.localeCompare(a.lastUpdated)
+    );
+  }, [events, foodDeals]);
 
   const calendarCount = useMemo(
     () =>
@@ -636,6 +740,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         upcomingBirthdays,
         importedEventsCount,
         importedFoodDealsCount,
+        importedSources,
         toggleSaved,
         toggleCalendar,
         toggleFoodDealCalendar,
@@ -653,6 +758,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         importFoodDealsFromJson,
         clearImportedEvents,
         clearImportedFoodDeals,
+        clearImportedSource,
       }}
     >
       {children}
