@@ -7,7 +7,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import { seedBirthdays, seedEvents, seedFoodDeals } from "./data";
+import {
+  seedBirthdays,
+  seedEvents,
+  seedFoodDeals,
+  type ScheduleType,
+} from "./data";
 
 type EventItem = {
   id: number;
@@ -22,6 +27,7 @@ type EventItem = {
   month: number;
   day: number;
   weekday: string;
+  scheduleType: ScheduleType;
   sourceType: "mock" | "scraped" | "api" | "manual" | "imported";
   sourceName: string;
   sourceUrl?: string;
@@ -38,6 +44,7 @@ type FoodDealItem = {
   icon?: string;
   days: string[];
   isHappyHour: boolean;
+  scheduleType: "recurring";
   sourceType: "mock" | "scraped" | "api" | "manual" | "imported";
   sourceName: string;
   sourceUrl?: string;
@@ -95,6 +102,7 @@ type ImportEventsPayload = {
     month: number;
     day: number;
     weekday: string;
+    scheduleType?: ScheduleType;
     lastUpdated?: string;
   }>;
 };
@@ -180,13 +188,13 @@ type EventsContextType = {
   clearImportedSource: (sourceName: string) => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v8";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v8";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v8";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v8";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v8";
-const FILTERS_KEY = "good-times-calendar-filters-v8";
-const SETTINGS_KEY = "good-times-calendar-settings-v8";
+const EVENTS_KEY = "good-times-calendar-events-v9";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v9";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v9";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v9";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v9";
+const FILTERS_KEY = "good-times-calendar-filters-v9";
+const SETTINGS_KEY = "good-times-calendar-settings-v9";
 
 const initialFilters: CalendarFilters = {
   birthdays: true,
@@ -539,6 +547,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       month: item.month,
       day: item.day,
       weekday: item.weekday,
+      scheduleType: item.scheduleType ?? "one_off",
       sourceType: "imported",
       sourceName: payload.sourceName,
       sourceUrl: payload.sourceUrl ?? "",
@@ -561,6 +570,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       icon: item.icon ?? "🍽️",
       days: item.days,
       isHappyHour: item.isHappyHour,
+      scheduleType: "recurring",
       sourceType: "imported",
       sourceName: payload.sourceName,
       sourceUrl: payload.sourceUrl ?? "",

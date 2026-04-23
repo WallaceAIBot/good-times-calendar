@@ -26,37 +26,69 @@ const filters: FilterType[] = [
   "Comedy",
 ];
 
-function getFreshnessInfo(lastUpdated: string) {
-  if (!lastUpdated) {
-    return {
-      label: "Unknown",
-      className: "bg-slate-100 text-slate-600",
-    };
-  }
-
-  const updated = new Date(`${lastUpdated}T00:00:00`);
+function getEventLifecycleInfo(
+  scheduleType: "recurring" | "one_off" | "seasonal" | "schedule_driven",
+  month: number,
+  day: number,
+  lastUpdated: string
+) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffMs = today.getTime() - updated.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) {
+  if (scheduleType === "recurring") {
     return {
-      label: "Updated Today",
-      className: "bg-green-100 text-green-700",
+      label: "Recurring",
+      className: "bg-blue-100 text-blue-700",
+      warning: "",
     };
   }
 
-  if (diffDays <= 7) {
+  if (scheduleType === "seasonal") {
     return {
-      label: "This Week",
-      className: "bg-blue-100 text-blue-700",
+      label: "Seasonal",
+      className: "bg-purple-100 text-purple-700",
+      warning: "",
+    };
+  }
+
+  if (scheduleType === "schedule_driven") {
+    const updated = lastUpdated ? new Date(`${lastUpdated}T00:00:00`) : today;
+    const diffDays = Math.floor(
+      (today.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays > 14) {
+      return {
+        label: "Schedule Driven",
+        className: "bg-amber-100 text-amber-700",
+        warning: "May need schedule re-check",
+      };
+    }
+
+    return {
+      label: "Schedule Driven",
+      className: "bg-indigo-100 text-indigo-700",
+      warning: "",
+    };
+  }
+
+  const eventDate = new Date(today.getFullYear(), month - 1, day);
+  const diffDays = Math.floor(
+    (today.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays > 0) {
+    return {
+      label: "One-Off",
+      className: "bg-red-100 text-red-700",
+      warning: "This event date has passed",
     };
   }
 
   return {
-    label: "Older",
-    className: "bg-amber-100 text-amber-700",
+    label: "One-Off",
+    className: "bg-green-100 text-green-700",
+    warning: "",
   };
 }
 
@@ -182,7 +214,12 @@ export default function DiscoverPage() {
           filteredEvents.map((event) => {
             const isRecommended = preferredCategories.includes(event.category);
             const isImported = event.sourceType === "imported";
-            const freshness = getFreshnessInfo(event.lastUpdated);
+            const lifecycle = getEventLifecycleInfo(
+              event.scheduleType,
+              event.month,
+              event.day,
+              event.lastUpdated
+            );
 
             return (
               <div
@@ -218,9 +255,9 @@ export default function DiscoverPage() {
                         </span>
                       ) : null}
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${freshness.className}`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${lifecycle.className}`}
                       >
-                        {freshness.label}
+                        {lifecycle.label}
                       </span>
                     </div>
 
@@ -232,12 +269,20 @@ export default function DiscoverPage() {
                       {event.details}
                     </p>
 
+                    {lifecycle.warning ? (
+                      <div className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+                        <p className="text-xs font-semibold text-amber-700">
+                          {lifecycle.warning}
+                        </p>
+                      </div>
+                    ) : null}
+
                     <div className="mt-2 rounded-2xl bg-slate-50 px-3 py-2">
                       <p className="text-[11px] font-medium text-slate-600">
                         Source: <span className="font-semibold text-slate-800">{event.sourceName}</span>
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        Type: {event.sourceType} · Last updated: {event.lastUpdated || "unknown"}
+                        Type: {event.sourceType} · Schedule: {event.scheduleType} · Last updated: {event.lastUpdated || "unknown"}
                       </p>
                       {event.sourceUrl ? (
                         <p className="mt-1 truncate text-[11px] text-slate-500">

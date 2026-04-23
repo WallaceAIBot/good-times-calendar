@@ -17,6 +17,7 @@ const sampleEventsJson = `{
       "month": 5,
       "day": 9,
       "weekday": "Sat",
+      "scheduleType": "one_off",
       "lastUpdated": "2026-04-23"
     },
     {
@@ -29,6 +30,20 @@ const sampleEventsJson = `{
       "month": 5,
       "day": 8,
       "weekday": "Fri",
+      "scheduleType": "recurring",
+      "lastUpdated": "2026-04-23"
+    },
+    {
+      "category": "Sports",
+      "title": "Thirsty Thursday Cougars Game",
+      "details": "Thursday · 6:30 PM · 12 miles away",
+      "badge": "Local",
+      "icon": "⚾",
+      "featured": false,
+      "month": 5,
+      "day": 14,
+      "weekday": "Thu",
+      "scheduleType": "schedule_driven",
       "lastUpdated": "2026-04-23"
     }
   ]
@@ -247,7 +262,7 @@ export default function ImportPage() {
                 `sourceName`, optional `sourceUrl`, and an `events` array.
               </p>
               <p className="mt-2 text-sm text-slate-700">
-                Each event should include title, details, month, day, weekday, and category.
+                Events can include `scheduleType`: recurring, one_off, seasonal, or schedule_driven.
               </p>
             </div>
 
@@ -259,7 +274,7 @@ export default function ImportPage() {
                 `sourceName`, optional `sourceUrl`, and a `deals` array.
               </p>
               <p className="mt-2 text-sm text-slate-700">
-                Each deal should include title, details, days, category, and whether it is happy hour.
+                Food deals are treated as recurring weekly schedules, not one-off stale events.
               </p>
             </div>
           </div>
@@ -359,10 +374,10 @@ export default function ImportPage() {
           <section className="rounded-[1.6rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
             <h2 className="text-xl font-bold">Tips</h2>
             <div className="mt-3 space-y-2 text-sm text-slate-700">
-              <p>• Imported items are labeled so you can spot them easily.</p>
-              <p>• Duplicate imports from the same source are filtered as best as possible.</p>
-              <p>• You can now clear one imported source without wiping all imported data.</p>
-              <p>• Later we can hook a scraper or API output directly into this same JSON format.</p>
+              <p>• Use `one_off` for festivals, popups, and single-date events.</p>
+              <p>• Use `recurring` for weekly trivia, open mic nights, and repeating schedules.</p>
+              <p>• Use `schedule_driven` for promo calendars that may change, like sports promo nights.</p>
+              <p>• Food deals stay on recurring logic so they do not get misleading stale warnings.</p>
             </div>
           </section>
         </div>

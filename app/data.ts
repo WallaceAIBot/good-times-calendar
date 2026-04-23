@@ -1,3 +1,9 @@
+export type ScheduleType =
+  | "recurring"
+  | "one_off"
+  | "seasonal"
+  | "schedule_driven";
+
 export type SeedEvent = {
   id: number;
   category: string;
@@ -11,6 +17,7 @@ export type SeedEvent = {
   month: number;
   day: number;
   weekday: string;
+  scheduleType: ScheduleType;
   sourceType: "mock" | "scraped" | "api" | "manual";
   sourceName: string;
   sourceUrl?: string;
@@ -27,6 +34,7 @@ export type SeedFoodDeal = {
   icon?: string;
   days: string[];
   isHappyHour: boolean;
+  scheduleType: "recurring";
   sourceType: "mock" | "scraped" | "api" | "manual";
   sourceName: string;
   sourceUrl?: string;
@@ -58,6 +66,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 22,
     weekday: "Wed",
+    scheduleType: "recurring",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -76,6 +85,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 24,
     weekday: "Fri",
+    scheduleType: "seasonal",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -94,6 +104,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 25,
     weekday: "Sat",
+    scheduleType: "one_off",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -112,6 +123,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 25,
     weekday: "Sat",
+    scheduleType: "one_off",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -130,6 +142,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 26,
     weekday: "Sun",
+    scheduleType: "schedule_driven",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -148,6 +161,7 @@ export const seedEvents: SeedEvent[] = [
     month: 4,
     day: 25,
     weekday: "Sat",
+    scheduleType: "recurring",
     sourceType: "mock",
     sourceName: "Seed Events",
     sourceUrl: "",
@@ -166,6 +180,7 @@ export const seedFoodDeals: SeedFoodDeal[] = [
     icon: "🍔",
     days: ["Mon"],
     isHappyHour: false,
+    scheduleType: "recurring",
     sourceType: "mock",
     sourceName: "Seed Food Deals",
     sourceUrl: "",
@@ -181,6 +196,7 @@ export const seedFoodDeals: SeedFoodDeal[] = [
     icon: "🍕",
     days: ["Mon"],
     isHappyHour: false,
+    scheduleType: "recurring",
     sourceType: "mock",
     sourceName: "Seed Food Deals",
     sourceUrl: "",
@@ -196,6 +212,7 @@ export const seedFoodDeals: SeedFoodDeal[] = [
     icon: "🍣",
     days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
     isHappyHour: true,
+    scheduleType: "recurring",
     sourceType: "mock",
     sourceName: "Seed Food Deals",
     sourceUrl: "",
