@@ -24,6 +24,40 @@ const pills: FilterPill[] = [
   "Happy Hour",
 ];
 
+function getFreshnessInfo(lastUpdated: string) {
+  if (!lastUpdated) {
+    return {
+      label: "Unknown",
+      className: "bg-slate-100 text-slate-600",
+    };
+  }
+
+  const updated = new Date(`${lastUpdated}T00:00:00`);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = today.getTime() - updated.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return {
+      label: "Updated Today",
+      className: "bg-green-100 text-green-700",
+    };
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: "This Week",
+      className: "bg-blue-100 text-blue-700",
+    };
+  }
+
+  return {
+    label: "Older",
+    className: "bg-amber-100 text-amber-700",
+  };
+}
+
 export default function FoodDealsPage() {
   const {
     foodDeals,
@@ -111,6 +145,7 @@ export default function FoodDealsPage() {
             const happyHourAdded =
               activePill === "Happy Hour" &&
               isFoodDealDayInCalendar(deal.id, selectedHappyHourDay);
+            const freshness = getFreshnessInfo(deal.lastUpdated);
 
             return (
               <div
@@ -140,6 +175,12 @@ export default function FoodDealsPage() {
                           Imported Data
                         </span>
                       ) : null}
+
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${freshness.className}`}
+                      >
+                        {freshness.label}
+                      </span>
                     </div>
 
                     <h3 className="mt-2 text-lg font-extrabold text-slate-900 sm:text-xl">
@@ -150,10 +191,19 @@ export default function FoodDealsPage() {
                       {deal.details}
                     </p>
 
-                    <p className="mt-2 text-[11px] font-medium text-slate-500">
-                      Source: {deal.sourceName}
-                      {deal.lastUpdated ? ` · Updated ${deal.lastUpdated}` : ""}
-                    </p>
+                    <div className="mt-2 rounded-2xl bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-medium text-slate-600">
+                        Source: <span className="font-semibold text-slate-800">{deal.sourceName}</span>
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Type: {deal.sourceType} · Last updated: {deal.lastUpdated || "unknown"}
+                      </p>
+                      {deal.sourceUrl ? (
+                        <p className="mt-1 truncate text-[11px] text-slate-500">
+                          {deal.sourceUrl}
+                        </p>
+                      ) : null}
+                    </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {deal.days.map((day) => {
