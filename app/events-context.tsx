@@ -61,12 +61,20 @@ type ManualItem = {
   icon: string;
 };
 
+type CalendarFilters = {
+  birthdays: boolean;
+  events: boolean;
+  food: boolean;
+  manual: boolean;
+};
+
 type EventsContextType = {
   events: EventItem[];
   foodDeals: FoodDealItem[];
   birthdays: BirthdayItem[];
   manualItems: ManualItem[];
   foodDealCalendarSelections: FoodDealCalendarSelection[];
+  filters: CalendarFilters;
   starredCount: number;
   calendarCount: number;
   foodDealsCount: number;
@@ -78,6 +86,7 @@ type EventsContextType = {
   toggleCalendar: (id: number) => void;
   toggleFoodDealCalendar: (id: number) => void;
   toggleFoodDealDayCalendar: (dealId: number, day: string) => void;
+  toggleFilter: (key: keyof CalendarFilters) => void;
   isFoodDealDayInCalendar: (dealId: number, day: string) => boolean;
   addBirthday: (
     name: string,
@@ -106,11 +115,12 @@ type EventsContextType = {
   removeManualItem: (id: number) => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v3";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v3";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v3";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v3";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v3";
+const EVENTS_KEY = "good-times-calendar-events-v4";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v4";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v4";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v4";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v4";
+const FILTERS_KEY = "good-times-calendar-filters-v4";
 
 const seededEvents: EventItem[] = initialEvents.map((event) => ({
   ...event,
@@ -176,6 +186,13 @@ const initialBirthdays: BirthdayItem[] = [
   },
 ];
 
+const initialFilters: CalendarFilters = {
+  birthdays: true,
+  events: true,
+  food: true,
+  manual: true,
+};
+
 const monthNames = [
   "",
   "January",
@@ -198,11 +215,21 @@ function readArrayFromStorage<T>(key: string): T[] | null {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
-
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return null;
-
     return parsed as T[];
+  } catch {
+    return null;
+  }
+}
+
+function readObjectFromStorage<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as T;
   } catch {
     return null;
   }
@@ -216,6 +243,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [foodDealCalendarSelections, setFoodDealCalendarSelections] = useState<
     FoodDealCalendarSelection[]
   >([]);
+  const [filters, setFilters] = useState<CalendarFilters>(initialFilters);
   const [storageReady, setStorageReady] = useState(false);
 
   useEffect(() => {
@@ -225,6 +253,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     const storedManualItems = readArrayFromStorage<ManualItem>(MANUAL_ITEMS_KEY);
     const storedHappyHourSelections =
       readArrayFromStorage<FoodDealCalendarSelection>(HAPPY_HOUR_KEY);
+    const storedFilters = readObjectFromStorage<CalendarFilters>(FILTERS_KEY);
 
     if (storedEvents) setEvents(storedEvents);
     if (storedFoodDeals) setFoodDeals(storedFoodDeals);
@@ -232,6 +261,19 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     if (storedManualItems) setManualItems(storedManualItems);
     if (storedHappyHourSelections) {
       setFoodDealCalendarSelections(storedHappyHourSelections);
+    }
+    if (storedFilters) {
+      setFilters({
+        birthdays:
+          typeof storedFilters.birthdays === "boolean"
+            ? storedFilters.birthdays
+            : true,
+        events:
+          typeof storedFilters.events === "boolean" ? storedFilters.events : true,
+        food: typeof storedFilters.food === "boolean" ? storedFilters.food : true,
+        manual:
+          typeof storedFilters.manual === "boolean" ? storedFilters.manual : true,
+      });
     }
 
     setStorageReady(true);
@@ -264,6 +306,11 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       JSON.stringify(foodDealCalendarSelections)
     );
   }, [foodDealCalendarSelections, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+  }, [filters, storageReady]);
 
   const toggleSaved = (id: number) => {
     setEvents((prev) =>
@@ -308,6 +355,13 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         },
       ];
     });
+  };
+
+  const toggleFilter = (key: keyof CalendarFilters) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const isFoodDealDayInCalendar = (dealId: number, day: string) => {
@@ -454,6 +508,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         birthdays,
         manualItems,
         foodDealCalendarSelections,
+        filters,
         starredCount,
         calendarCount,
         foodDealsCount,
@@ -465,6 +520,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         toggleCalendar,
         toggleFoodDealCalendar,
         toggleFoodDealDayCalendar,
+        toggleFilter,
         isFoodDealDayInCalendar,
         addBirthday,
         updateBirthday,

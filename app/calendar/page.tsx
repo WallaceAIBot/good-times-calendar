@@ -81,6 +81,8 @@ export default function CalendarPage() {
     birthdays,
     manualItems,
     foodDealCalendarSelections,
+    filters,
+    toggleFilter,
     addManualItem,
     updateManualItem,
     removeManualItem,
@@ -100,74 +102,95 @@ export default function CalendarPage() {
   const daysInMonth = getDaysInMonth(displayYear, displayMonthNumber);
   const firstWeekday = getFirstWeekdayOfMonth(displayYear, displayMonthNumber);
 
-  const calendarEvents: CalendarItem[] = events
-    .filter((event) => event.calendar && event.month === displayMonthNumber)
-    .map((event) => ({
-      id: event.id,
-      type: "event",
-      category: event.category,
-      title: event.title,
-      details: event.details,
-      icon: event.icon ?? "🎉",
-      month: event.month,
-      day: event.day,
-    }));
+  const calendarEvents: CalendarItem[] = filters.events
+    ? events
+        .filter((event) => event.calendar && event.month === displayMonthNumber)
+        .map((event) => ({
+          id: event.id,
+          type: "event",
+          category: event.category,
+          title: event.title,
+          details: event.details,
+          icon: event.icon ?? "🎉",
+          month: event.month,
+          day: event.day,
+        }))
+    : [];
 
-  const calendarFoodDeals: CalendarItem[] = foodDeals
-    .filter((deal) => deal.calendar)
-    .map((deal) => ({
-      id: deal.id,
-      type: "foodDeal",
-      category: deal.category,
-      title: deal.title,
-      details: deal.details,
-      icon: deal.icon ?? "🍔",
-    }));
+  const calendarFoodDeals: CalendarItem[] = filters.food
+    ? foodDeals
+        .filter((deal) => deal.calendar)
+        .map((deal) => ({
+          id: deal.id,
+          type: "foodDeal",
+          category: deal.category,
+          title: deal.title,
+          details: deal.details,
+          icon: deal.icon ?? "🍔",
+        }))
+    : [];
 
-  const calendarHappyHourSelections: CalendarItem[] = foodDealCalendarSelections
-    .map((selection) => {
-      const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
-      if (!matchingDeal) return null;
+  const calendarHappyHourSelections: CalendarItem[] = filters.food
+    ? foodDealCalendarSelections
+        .map((selection) => {
+          const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
+          if (!matchingDeal) return null;
 
-      return {
-        id: selection.id,
-        type: "foodDeal" as const,
-        category: `${selection.day} Happy Hour`,
-        title: matchingDeal.title,
-        details: matchingDeal.details,
-        icon: matchingDeal.icon ?? "🍸",
-        month: displayMonthNumber,
-        day: foodDealDayToCalendarDay[selection.day],
-      };
-    })
-    .filter(Boolean) as CalendarItem[];
+          return {
+            id: selection.id,
+            type: "foodDeal" as const,
+            category: `${selection.day} Happy Hour`,
+            title: matchingDeal.title,
+            details: matchingDeal.details,
+            icon: matchingDeal.icon ?? "🍸",
+            month: displayMonthNumber,
+            day: foodDealDayToCalendarDay[selection.day],
+          };
+        })
+        .filter(Boolean) as CalendarItem[]
+    : [];
 
-  const birthdayItems: CalendarItem[] = birthdays
-    .filter((birthday) => birthday.month === displayMonthNumber)
-    .map((birthday) => ({
-      id: birthday.id,
-      type: "birthday",
-      category: "Birthday",
-      title: birthday.name,
-      details: `${birthday.date} · Turning ${CURRENT_YEAR - birthday.year}`,
-      icon: birthday.icon ?? "🎂",
-      month: birthday.month,
-      day: birthday.day,
-      personEmoji: birthday.personEmoji,
-    }));
+  const birthdayItems: CalendarItem[] = filters.birthdays
+    ? birthdays
+        .filter((birthday) => birthday.month === displayMonthNumber)
+        .map((birthday) => ({
+          id: birthday.id,
+          type: "birthday",
+          category: "Birthday",
+          title: birthday.name,
+          details: `${birthday.date} · Turning ${CURRENT_YEAR - birthday.year}`,
+          icon: birthday.icon ?? "🎂",
+          month: birthday.month,
+          day: birthday.day,
+          personEmoji: birthday.personEmoji,
+        }))
+    : [];
 
-  const watchlistItems: CalendarItem[] = events
-    .filter((event) => event.saved && !event.calendar && event.month === displayMonthNumber)
-    .map((event) => ({
-      id: event.id,
-      type: "watchlist",
-      category: event.category,
-      title: event.title,
-      details: `${event.details} · Watchlist`,
-      icon: event.icon ?? "⭐",
-      month: event.month,
-      day: event.day,
-    }));
+  const watchlistItems: CalendarItem[] = filters.events
+    ? events
+        .filter(
+          (event) =>
+            event.saved &&
+            !event.calendar &&
+            event.month === displayMonthNumber
+        )
+        .map((event) => ({
+          id: event.id,
+          type: "watchlist",
+          category: event.category,
+          title: event.title,
+          details: `${event.details} · Watchlist`,
+          icon: event.icon ?? "⭐",
+          month: event.month,
+          day: event.day,
+        }))
+    : [];
+
+  const visibleManualItems = filters.manual
+    ? manualItems.filter(
+        (item) => item.month === displayMonthNumber && item.day === selectedDay
+      )
+    : [];
 
   const allCalendarItems = [
     ...birthdayItems,
@@ -222,10 +245,8 @@ export default function CalendarPage() {
   }, [watchlistItems, selectedDay]);
 
   const selectedDayManualItems = useMemo(() => {
-    return manualItems.filter(
-      (item) => item.month === displayMonthNumber && item.day === selectedDay
-    );
-  }, [manualItems, displayMonthNumber, selectedDay]);
+    return visibleManualItems;
+  }, [visibleManualItems]);
 
   const handleAddManualItem = () => {
     addManualItem(displayMonthNumber, selectedDay, manualInput, manualEmoji);
@@ -253,9 +274,11 @@ export default function CalendarPage() {
   const getDayCount = (day: number) => {
     const calendarItemCount = allCalendarItems.filter((item) => item.day === day).length;
     const watchlistCount = watchlistItems.filter((item) => item.day === day).length;
-    const manualCount = manualItems.filter(
-      (item) => item.month === displayMonthNumber && item.day === day
-    ).length;
+    const manualCount = filters.manual
+      ? manualItems.filter(
+          (item) => item.month === displayMonthNumber && item.day === day
+        ).length
+      : 0;
 
     return calendarItemCount + watchlistCount + manualCount;
   };
@@ -284,9 +307,11 @@ export default function CalendarPage() {
       .sort((a, b) => a.title.localeCompare(b.title))
       .forEach((item) => icons.push(item.icon));
 
-    manualItems
-      .filter((item) => item.month === displayMonthNumber && item.day === day)
-      .forEach((item) => icons.push(item.icon));
+    if (filters.manual) {
+      manualItems
+        .filter((item) => item.month === displayMonthNumber && item.day === day)
+        .forEach((item) => icons.push(item.icon));
+    }
 
     return icons.slice(0, 3);
   };
@@ -349,6 +374,31 @@ export default function CalendarPage() {
             Next →
           </button>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { key: "birthdays", label: "🎂 Birthdays" },
+          { key: "events", label: "🎉 Events" },
+          { key: "food", label: "🍔 Food" },
+          { key: "manual", label: "📌 Manual" },
+        ].map(({ key, label }) => {
+          const isOn = filters[key as keyof typeof filters];
+
+          return (
+            <button
+              key={key}
+              onClick={() => toggleFilter(key as keyof typeof filters)}
+              className={`rounded-full px-3 py-2 text-xs font-bold sm:text-sm ${
+                isOn
+                  ? "bg-slate-900 text-white"
+                  : "bg-white text-slate-600 ring-1 ring-black/10"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr] lg:gap-5">
@@ -571,7 +621,11 @@ export default function CalendarPage() {
             </div>
 
             <div className="mt-3 space-y-2">
-              {selectedDayManualItems.length === 0 ? (
+              {!filters.manual ? (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  Manual items are hidden by the filter toggle.
+                </div>
+              ) : selectedDayManualItems.length === 0 ? (
                 <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
                   No manual items for this day yet.
                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useEvents } from "../events-context";
 
 const CURRENT_YEAR = 2026;
@@ -16,6 +16,8 @@ const birthdayEmojiOptions = [
 
 export default function BirthdaysPage() {
   const { birthdays, addBirthday, updateBirthday, removeBirthday } = useEvents();
+
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [month, setMonth] = useState("");
@@ -37,6 +39,16 @@ export default function BirthdaysPage() {
     "January","February","March","April","May","June",
     "July","August","September","October","November","December",
   ];
+
+  const filteredBirthdays = useMemo(() => {
+    const normalized = search.trim().toLowerCase();
+
+    return birthdays.filter((birthday) =>
+      normalized.length === 0
+        ? true
+        : birthday.name.toLowerCase().includes(normalized)
+    );
+  }, [birthdays, search]);
 
   const handleAddBirthday = () => {
     const trimmedName = name.trim();
@@ -120,6 +132,16 @@ export default function BirthdaysPage() {
         <p className="mt-1 text-sm text-slate-700 sm:text-base">
           Keep track of birthdays, ages, and personal emoji markers.
         </p>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search birthdays..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-2xl border border-black/10 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-orange-300"
+        />
       </div>
 
       <div className="mb-6 rounded-[1.6rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
@@ -211,12 +233,12 @@ export default function BirthdaysPage() {
       </div>
 
       <div className="space-y-3">
-        {birthdays.length === 0 ? (
+        {filteredBirthdays.length === 0 ? (
           <div className="rounded-[1.6rem] bg-white p-5 text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
-            No birthdays added yet.
+            No birthdays match that search.
           </div>
         ) : (
-          birthdays.map((birthday) => {
+          filteredBirthdays.map((birthday) => {
             const turningAge = CURRENT_YEAR - birthday.year;
             const isEditing = editingId === birthday.id;
 
