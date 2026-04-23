@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { events as initialEvents } from "./discover/events";
+import { seedBirthdays, seedEvents, seedFoodDeals } from "./data";
 
 type EventItem = {
   id: number;
@@ -22,6 +22,10 @@ type EventItem = {
   month: number;
   day: number;
   weekday: string;
+  sourceType: "mock" | "scraped" | "api" | "manual";
+  sourceName: string;
+  sourceUrl?: string;
+  lastUpdated: string;
 };
 
 type FoodDealItem = {
@@ -34,6 +38,10 @@ type FoodDealItem = {
   icon?: string;
   days: string[];
   isHappyHour: boolean;
+  sourceType: "mock" | "scraped" | "api" | "manual";
+  sourceName: string;
+  sourceUrl?: string;
+  lastUpdated: string;
 };
 
 type FoodDealCalendarSelection = {
@@ -123,77 +131,13 @@ type EventsContextType = {
   removeManualItem: (id: number) => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v5";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v5";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v5";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v5";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v5";
-const FILTERS_KEY = "good-times-calendar-filters-v5";
-const SETTINGS_KEY = "good-times-calendar-settings-v5";
-
-const seededEvents: EventItem[] = initialEvents.map((event) => ({
-  ...event,
-  featured: true,
-}));
-
-const initialFoodDeals: FoodDealItem[] = [
-  {
-    id: 101,
-    category: "Monday Special",
-    title: "St. Charles Place",
-    details: "Half-price burgers",
-    calendar: false,
-    featured: true,
-    icon: "🍔",
-    days: ["Mon"],
-    isHappyHour: false,
-  },
-  {
-    id: 102,
-    category: "Pizza Night",
-    title: "Gia Mia",
-    details: "Half-price pizzas",
-    calendar: false,
-    featured: false,
-    icon: "🍕",
-    days: ["Mon"],
-    isHappyHour: false,
-  },
-  {
-    id: 103,
-    category: "Happy Hour",
-    title: "Moto Imoto",
-    details: "3–6 PM happy hour",
-    calendar: false,
-    featured: false,
-    icon: "🍣",
-    days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    isHappyHour: true,
-  },
-];
-
-const initialBirthdays: BirthdayItem[] = [
-  {
-    id: 201,
-    name: "Mom",
-    date: "April 14",
-    month: 4,
-    day: 14,
-    year: 1962,
-    icon: "🎂",
-    personEmoji: "👩",
-  },
-  {
-    id: 202,
-    name: "Butters",
-    date: "June 2",
-    month: 6,
-    day: 2,
-    year: 2020,
-    icon: "🎂",
-    personEmoji: "🐱",
-  },
-];
+const EVENTS_KEY = "good-times-calendar-events-v6";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v6";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v6";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v6";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v6";
+const FILTERS_KEY = "good-times-calendar-filters-v6";
+const SETTINGS_KEY = "good-times-calendar-settings-v6";
 
 const initialFilters: CalendarFilters = {
   birthdays: true,
@@ -253,9 +197,9 @@ function readObjectFromStorage<T>(key: string): T | null {
 }
 
 export function EventsProvider({ children }: { children: React.ReactNode }) {
-  const [events, setEvents] = useState<EventItem[]>(seededEvents);
-  const [foodDeals, setFoodDeals] = useState<FoodDealItem[]>(initialFoodDeals);
-  const [birthdays, setBirthdays] = useState<BirthdayItem[]>(initialBirthdays);
+  const [events, setEvents] = useState<EventItem[]>(seedEvents);
+  const [foodDeals, setFoodDeals] = useState<FoodDealItem[]>(seedFoodDeals);
+  const [birthdays, setBirthdays] = useState<BirthdayItem[]>(seedBirthdays);
   const [manualItems, setManualItems] = useState<ManualItem[]>([]);
   const [foodDealCalendarSelections, setFoodDealCalendarSelections] = useState<
     FoodDealCalendarSelection[]
