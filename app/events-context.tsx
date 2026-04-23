@@ -68,6 +68,12 @@ type CalendarFilters = {
   manual: boolean;
 };
 
+type Settings = {
+  homeLocation: string;
+  preferredCategories: string[];
+  preferredFood: string[];
+};
+
 type EventsContextType = {
   events: EventItem[];
   foodDeals: FoodDealItem[];
@@ -75,6 +81,7 @@ type EventsContextType = {
   manualItems: ManualItem[];
   foodDealCalendarSelections: FoodDealCalendarSelection[];
   filters: CalendarFilters;
+  settings: Settings;
   starredCount: number;
   calendarCount: number;
   foodDealsCount: number;
@@ -87,6 +94,7 @@ type EventsContextType = {
   toggleFoodDealCalendar: (id: number) => void;
   toggleFoodDealDayCalendar: (dealId: number, day: string) => void;
   toggleFilter: (key: keyof CalendarFilters) => void;
+  updateSettings: (newSettings: Settings) => void;
   isFoodDealDayInCalendar: (dealId: number, day: string) => boolean;
   addBirthday: (
     name: string,
@@ -115,12 +123,13 @@ type EventsContextType = {
   removeManualItem: (id: number) => void;
 };
 
-const EVENTS_KEY = "good-times-calendar-events-v4";
-const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v4";
-const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v4";
-const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v4";
-const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v4";
-const FILTERS_KEY = "good-times-calendar-filters-v4";
+const EVENTS_KEY = "good-times-calendar-events-v5";
+const FOOD_DEALS_KEY = "good-times-calendar-food-deals-v5";
+const BIRTHDAYS_KEY = "good-times-calendar-birthdays-v5";
+const MANUAL_ITEMS_KEY = "good-times-calendar-manual-items-v5";
+const HAPPY_HOUR_KEY = "good-times-calendar-happy-hour-v5";
+const FILTERS_KEY = "good-times-calendar-filters-v5";
+const SETTINGS_KEY = "good-times-calendar-settings-v5";
 
 const seededEvents: EventItem[] = initialEvents.map((event) => ({
   ...event,
@@ -193,6 +202,12 @@ const initialFilters: CalendarFilters = {
   manual: true,
 };
 
+const initialSettings: Settings = {
+  homeLocation: "",
+  preferredCategories: [],
+  preferredFood: [],
+};
+
 const monthNames = [
   "",
   "January",
@@ -228,7 +243,9 @@ function readObjectFromStorage<T>(key: string): T | null {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
     return parsed as T;
   } catch {
     return null;
@@ -244,6 +261,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     FoodDealCalendarSelection[]
   >([]);
   const [filters, setFilters] = useState<CalendarFilters>(initialFilters);
+  const [settings, setSettings] = useState<Settings>(initialSettings);
   const [storageReady, setStorageReady] = useState(false);
 
   useEffect(() => {
@@ -254,6 +272,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     const storedHappyHourSelections =
       readArrayFromStorage<FoodDealCalendarSelection>(HAPPY_HOUR_KEY);
     const storedFilters = readObjectFromStorage<CalendarFilters>(FILTERS_KEY);
+    const storedSettings = readObjectFromStorage<Settings>(SETTINGS_KEY);
 
     if (storedEvents) setEvents(storedEvents);
     if (storedFoodDeals) setFoodDeals(storedFoodDeals);
@@ -273,6 +292,20 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         food: typeof storedFilters.food === "boolean" ? storedFilters.food : true,
         manual:
           typeof storedFilters.manual === "boolean" ? storedFilters.manual : true,
+      });
+    }
+    if (storedSettings) {
+      setSettings({
+        homeLocation:
+          typeof storedSettings.homeLocation === "string"
+            ? storedSettings.homeLocation
+            : "",
+        preferredCategories: Array.isArray(storedSettings.preferredCategories)
+          ? storedSettings.preferredCategories
+          : [],
+        preferredFood: Array.isArray(storedSettings.preferredFood)
+          ? storedSettings.preferredFood
+          : [],
       });
     }
 
@@ -311,6 +344,11 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     if (!storageReady) return;
     window.localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
   }, [filters, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }, [settings, storageReady]);
 
   const toggleSaved = (id: number) => {
     setEvents((prev) =>
@@ -362,6 +400,10 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       [key]: !prev[key],
     }));
+  };
+
+  const updateSettings = (newSettings: Settings) => {
+    setSettings(newSettings);
   };
 
   const isFoodDealDayInCalendar = (dealId: number, day: string) => {
@@ -509,6 +551,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         manualItems,
         foodDealCalendarSelections,
         filters,
+        settings,
         starredCount,
         calendarCount,
         foodDealsCount,
@@ -521,6 +564,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         toggleFoodDealCalendar,
         toggleFoodDealDayCalendar,
         toggleFilter,
+        updateSettings,
         isFoodDealDayInCalendar,
         addBirthday,
         updateBirthday,
