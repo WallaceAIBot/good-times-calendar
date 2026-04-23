@@ -429,6 +429,24 @@ export default function HomePage() {
           </p>
         </header>
 
+        {(settings.preferredCategories.length > 0 || settings.preferredFood.length > 0) && (
+          <section className="mb-6 rounded-[1.6rem] bg-white/85 p-4 shadow-sm ring-1 ring-black/5">
+            <p className="text-xs font-bold uppercase tracking-wide text-purple-600">
+              Personalized For You
+            </p>
+            <p className="mt-1 text-sm text-slate-700">
+              {settings.preferredCategories.length > 0
+                ? `Categories: ${settings.preferredCategories.join(", ")}`
+                : "No preferred categories yet."}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">
+              {settings.preferredFood.length > 0
+                ? `Food: ${settings.preferredFood.join(", ")}`
+                : "No preferred food types yet."}
+            </p>
+          </section>
+        )}
+
         <section className="mb-6 rounded-[2rem] bg-white/85 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div>
