@@ -82,9 +82,15 @@ const foodDealDayToCalendarDay: Record<string, number> = {
   Sun: 14,
 };
 
-const CURRENT_YEAR = 2026;
-const TODAY_MONTH_NUMBER = 4;
-const TODAY_DAY = 22;
+function getTodayInfo() {
+  const now = new Date();
+
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+  };
+}
 
 function getDaysInMonth(year: number, monthNumber: number) {
   return new Date(year, monthNumber, 0).getDate();
@@ -212,9 +218,11 @@ export default function CalendarPage() {
     removeManualItem,
   } = useEvents();
 
-  const [displayYear, setDisplayYear] = useState(CURRENT_YEAR);
-  const [displayMonthNumber, setDisplayMonthNumber] = useState(TODAY_MONTH_NUMBER);
-  const [selectedDay, setSelectedDay] = useState(TODAY_DAY);
+  const todayInfo = useMemo(() => getTodayInfo(), []);
+
+  const [displayYear, setDisplayYear] = useState(todayInfo.year);
+  const [displayMonthNumber, setDisplayMonthNumber] = useState(todayInfo.month);
+  const [selectedDay, setSelectedDay] = useState(todayInfo.day);
 
   const [manualInput, setManualInput] = useState("");
   const [manualEmoji, setManualEmoji] = useState("📌");
@@ -272,7 +280,9 @@ export default function CalendarPage() {
   const calendarHappyHourSelections: CalendarItem[] = filters.food
     ? foodDealCalendarSelections
         .map((selection) => {
-          const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
+          const matchingDeal = foodDeals.find(
+            (deal) => deal.id === selection.dealId
+          );
           if (!matchingDeal) return null;
 
           return {
@@ -301,7 +311,7 @@ export default function CalendarPage() {
           type: "birthday",
           category: "Birthday",
           title: birthday.name,
-          details: `${birthday.date} · Turning ${CURRENT_YEAR - birthday.year}`,
+          details: `${birthday.date} · Turning ${displayYear - birthday.year}`,
           icon: birthday.icon ?? "🎂",
           month: birthday.month,
           day: birthday.day,
@@ -369,9 +379,9 @@ export default function CalendarPage() {
   };
 
   const handleToday = () => {
-    setDisplayYear(CURRENT_YEAR);
-    setDisplayMonthNumber(TODAY_MONTH_NUMBER);
-    setSelectedDay(TODAY_DAY);
+    setDisplayYear(todayInfo.year);
+    setDisplayMonthNumber(todayInfo.month);
+    setSelectedDay(todayInfo.day);
     setEditingManualId(null);
   };
 
@@ -442,8 +452,12 @@ export default function CalendarPage() {
   };
 
   const getDayCount = (day: number) => {
-    const calendarItemCount = allCalendarItems.filter((item) => item.day === day).length;
-    const watchlistCount = watchlistItems.filter((item) => item.day === day).length;
+    const calendarItemCount = allCalendarItems.filter(
+      (item) => item.day === day
+    ).length;
+    const watchlistCount = watchlistItems.filter(
+      (item) => item.day === day
+    ).length;
     const manualCount = filters.manual
       ? manualItems.filter(
           (item) => item.month === displayMonthNumber && item.day === day
@@ -496,9 +510,9 @@ export default function CalendarPage() {
   }, [displayYear, displayMonthNumber, selectedDay]);
 
   const isSelectedToday =
-    displayYear === CURRENT_YEAR &&
-    displayMonthNumber === TODAY_MONTH_NUMBER &&
-    selectedDay === TODAY_DAY;
+    displayYear === todayInfo.year &&
+    displayMonthNumber === todayInfo.month &&
+    selectedDay === todayInfo.day;
 
   const calendarCells = [
     ...Array.from({ length: firstWeekday }, (_, index) => ({
@@ -591,7 +605,9 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-2">
             {calendarCells.map((cell) => {
               if (cell.type === "blank") {
-                return <div key={cell.key} className="min-h-[82px] sm:min-h-[96px]" />;
+                return (
+                  <div key={cell.key} className="min-h-[82px] sm:min-h-[96px]" />
+                );
               }
 
               const day = cell.day;
