@@ -559,10 +559,10 @@ export default function CalendarPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-pink-50 px-4 py-5 text-slate-900 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-pink-50 px-3 py-4 pb-24 text-slate-900 sm:p-6">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
             Calendar
           </h1>
           <p className="mt-1 text-sm text-slate-700 sm:text-base">
@@ -592,7 +592,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {[
           { key: "birthdays", label: "🎂 Birthdays" },
           { key: "events", label: "🎉 Events" },
@@ -638,7 +638,7 @@ export default function CalendarPage() {
             {calendarCells.map((cell) => {
               if (cell.type === "blank") {
                 return (
-                  <div key={cell.key} className="min-h-[82px] sm:min-h-[96px]" />
+                  <div key={cell.key} className="min-h-[64px] sm:min-h-[96px]" />
                 );
               }
 
@@ -654,7 +654,7 @@ export default function CalendarPage() {
                     setSelectedDay(day);
                     setEditingManualId(null);
                   }}
-                  className={`rounded-2xl border bg-white p-2 text-left shadow-sm transition ${
+                  className={`rounded-xl border bg-white p-1.5 text-left shadow-sm transition sm:rounded-2xl sm:p-2 ${
                     isSelected
                       ? "scale-[1.01] border-orange-400 bg-orange-50 ring-2 ring-orange-200"
                       : "border-black/5 hover:border-orange-200"
@@ -695,7 +695,7 @@ export default function CalendarPage() {
           </div>
         </section>
 
-        <aside className="rounded-[1.8rem] bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <aside className="rounded-[1.4rem] bg-white p-3 shadow-sm ring-1 ring-black/5 sm:rounded-[1.8rem] sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
               {selectedWeekdayName}, {currentMonthName} {selectedDay}
