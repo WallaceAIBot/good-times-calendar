@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useEvents } from "../events-context";
 
 type ScheduleType =
@@ -205,6 +206,8 @@ function getLifecycleInfo(item: CalendarItem, displayYear: number) {
 }
 
 export default function CalendarPage() {
+  const searchParams = useSearchParams();
+
   const {
     events,
     foodDeals,
@@ -223,6 +226,26 @@ export default function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(todayInfo.year);
   const [displayMonthNumber, setDisplayMonthNumber] = useState(todayInfo.month);
   const [selectedDay, setSelectedDay] = useState(todayInfo.day);
+  useEffect(() => {
+  const urlYear = Number(searchParams.get("year"));
+  const urlMonth = Number(searchParams.get("month"));
+  const urlDay = Number(searchParams.get("day"));
+
+  if (
+    Number.isInteger(urlYear) &&
+    Number.isInteger(urlMonth) &&
+    Number.isInteger(urlDay) &&
+    urlYear > 1900 &&
+    urlMonth >= 1 &&
+    urlMonth <= 12 &&
+    urlDay >= 1 &&
+    urlDay <= 31
+  ) {
+    setDisplayYear(urlYear);
+    setDisplayMonthNumber(urlMonth);
+    setSelectedDay(urlDay);
+  }
+}, [searchParams]);
 
   const [manualInput, setManualInput] = useState("");
   const [manualEmoji, setManualEmoji] = useState("📌");

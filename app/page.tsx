@@ -653,12 +653,14 @@ export default function HomePage() {
               </h2>
             </div>
 
-            <Link
-              href="/calendar"
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-            >
-              View Day
-            </Link>
+<Link
+  href={`/calendar?year=${now.getFullYear()}&month=${
+    now.getMonth() + 1
+  }&day=${now.getDate()}`}
+  className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+>
+  View Day
+</Link>
           </div>
 
           <div className="mt-4 space-y-3">
