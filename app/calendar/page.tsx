@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEvents } from "../events-context";
 
 type ScheduleType =
@@ -225,6 +225,14 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState(todayInfo.day);
 
   const [manualInput, setManualInput] = useState("");
+  const manualInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+  if (manualInputRef.current) {
+    manualInputRef.current.focus();
+  }
+}, [selectedDay]);
+
   const [manualEmoji, setManualEmoji] = useState("📌");
   const [manualCategory, setManualCategory] = useState("Manual");
   const [manualScheduleType, setManualScheduleType] =
@@ -944,8 +952,15 @@ export default function CalendarPage() {
 
               <div className="mt-3 flex gap-2">
                 <input
+                  ref={manualInputRef}
                   value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && manualInput.trim()) {
+                      e.preventDefault();
+                      handleAddManualItem();
+                   }
+                 }}
                   placeholder="Dinner, movie night, reminder..."
                   className="flex-1 rounded-full border border-black/10 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-orange-300"
                 />
