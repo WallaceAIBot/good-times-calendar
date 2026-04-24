@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { useEvents } from "../events-context";
 
 type ScheduleType =
@@ -206,8 +205,6 @@ function getLifecycleInfo(item: CalendarItem, displayYear: number) {
 }
 
 export default function CalendarPage() {
-  const searchParams = useSearchParams();
-
   const {
     events,
     foodDeals,
@@ -226,26 +223,6 @@ export default function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(todayInfo.year);
   const [displayMonthNumber, setDisplayMonthNumber] = useState(todayInfo.month);
   const [selectedDay, setSelectedDay] = useState(todayInfo.day);
-  useEffect(() => {
-  const urlYear = Number(searchParams.get("year"));
-  const urlMonth = Number(searchParams.get("month"));
-  const urlDay = Number(searchParams.get("day"));
-
-  if (
-    Number.isInteger(urlYear) &&
-    Number.isInteger(urlMonth) &&
-    Number.isInteger(urlDay) &&
-    urlYear > 1900 &&
-    urlMonth >= 1 &&
-    urlMonth <= 12 &&
-    urlDay >= 1 &&
-    urlDay <= 31
-  ) {
-    setDisplayYear(urlYear);
-    setDisplayMonthNumber(urlMonth);
-    setSelectedDay(urlDay);
-  }
-}, [searchParams]);
 
   const [manualInput, setManualInput] = useState("");
   const [manualEmoji, setManualEmoji] = useState("📌");
@@ -259,6 +236,28 @@ export default function CalendarPage() {
   const [editManualCategory, setEditManualCategory] = useState("Manual");
   const [editManualScheduleType, setEditManualScheduleType] =
     useState<ScheduleType>("one_off");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlYear = Number(params.get("year"));
+    const urlMonth = Number(params.get("month"));
+    const urlDay = Number(params.get("day"));
+
+    if (
+      Number.isInteger(urlYear) &&
+      Number.isInteger(urlMonth) &&
+      Number.isInteger(urlDay) &&
+      urlYear > 1900 &&
+      urlMonth >= 1 &&
+      urlMonth <= 12 &&
+      urlDay >= 1 &&
+      urlDay <= 31
+    ) {
+      setDisplayYear(urlYear);
+      setDisplayMonthNumber(urlMonth);
+      setSelectedDay(urlDay);
+    }
+  }, []);
 
   const currentMonthName = monthNames[displayMonthNumber - 1];
   const daysInMonth = getDaysInMonth(displayYear, displayMonthNumber);
@@ -427,6 +426,16 @@ export default function CalendarPage() {
   const selectedDayManualItems = useMemo(() => {
     return visibleManualItems;
   }, [visibleManualItems]);
+
+  const daySummary = {
+    calendar: selectedDayEvents.length,
+    starred: selectedDayWatchlist.length,
+    manual: selectedDayManualItems.length,
+    total:
+      selectedDayEvents.length +
+      selectedDayWatchlist.length +
+      selectedDayManualItems.length,
+  };
 
   const handleAddManualItem = () => {
     addManualItem(
@@ -702,10 +711,44 @@ export default function CalendarPage() {
             Your day-at-a-glance view
           </p>
 
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-orange-50 p-3 text-center ring-1 ring-orange-100">
+              <p className="text-lg font-extrabold text-orange-700">
+                {daySummary.calendar}
+              </p>
+              <p className="text-[10px] font-bold uppercase text-orange-600">
+                Scheduled
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-yellow-50 p-3 text-center ring-1 ring-yellow-100">
+              <p className="text-lg font-extrabold text-yellow-700">
+                {daySummary.starred}
+              </p>
+              <p className="text-[10px] font-bold uppercase text-yellow-600">
+                Starred
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-pink-50 p-3 text-center ring-1 ring-pink-100">
+              <p className="text-lg font-extrabold text-pink-700">
+                {daySummary.manual}
+              </p>
+              <p className="text-[10px] font-bold uppercase text-pink-600">
+                Manual
+              </p>
+            </div>
+          </div>
+
           <div className="mt-5">
-            <h3 className="text-sm font-extrabold uppercase tracking-wide text-orange-600">
-              Calendar Items
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-orange-600">
+                Scheduled Items
+              </h3>
+              <span className="rounded-full bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-700">
+                {daySummary.calendar}
+              </span>
+            </div>
 
             <div className="mt-3 space-y-3">
               {selectedDayEvents.length === 0 ? (
@@ -719,7 +762,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={item.id}
-                      className="rounded-3xl border border-black/5 bg-slate-50 p-4 shadow-sm"
+                      className="rounded-3xl border border-orange-100 bg-orange-50/50 p-4 shadow-sm"
                     >
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
@@ -783,9 +826,14 @@ export default function CalendarPage() {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-sm font-extrabold uppercase tracking-wide text-yellow-600">
-              Starred Ideas
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-yellow-600">
+                Starred Ideas
+              </h3>
+              <span className="rounded-full bg-yellow-100 px-2 py-1 text-[10px] font-bold text-yellow-700">
+                {daySummary.starred}
+              </span>
+            </div>
 
             <div className="mt-3 space-y-3">
               {selectedDayWatchlist.length === 0 ? (
@@ -836,67 +884,78 @@ export default function CalendarPage() {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-sm font-extrabold uppercase tracking-wide text-pink-600">
-              Manual Items
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-pink-600">
+                Manual Items
+              </h3>
+              <span className="rounded-full bg-pink-100 px-2 py-1 text-[10px] font-bold text-pink-700">
+                {daySummary.manual}
+              </span>
+            </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {manualEmojiOptions.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setManualEmoji(emoji)}
-                  className={`rounded-full px-3 py-2 text-sm transition ${
-                    manualEmoji === emoji
-                      ? "bg-pink-100 ring-2 ring-pink-200"
-                      : "bg-slate-100"
-                  }`}
+            <div className="mt-3 rounded-3xl bg-pink-50/60 p-3 ring-1 ring-pink-100">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-pink-600">
+                Add Manual Item
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {manualEmojiOptions.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => setManualEmoji(emoji)}
+                    className={`rounded-full px-3 py-2 text-sm transition ${
+                      manualEmoji === emoji
+                        ? "bg-pink-100 ring-2 ring-pink-200"
+                        : "bg-white"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <select
+                  value={manualCategory}
+                  onChange={(e) => setManualCategory(e.target.value)}
+                  className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
                 >
-                  {emoji}
+                  {manualCategoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={manualScheduleType}
+                  onChange={(e) =>
+                    setManualScheduleType(e.target.value as ScheduleType)
+                  }
+                  className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
+                >
+                  {scheduleTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  placeholder="Dinner, movie night, reminder..."
+                  className="flex-1 rounded-full border border-black/10 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-orange-300"
+                />
+                <button
+                  onClick={handleAddManualItem}
+                  className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-bold text-white"
+                >
+                  Add
                 </button>
-              ))}
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <select
-                value={manualCategory}
-                onChange={(e) => setManualCategory(e.target.value)}
-                className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
-              >
-                {manualCategoryOptions.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={manualScheduleType}
-                onChange={(e) =>
-                  setManualScheduleType(e.target.value as ScheduleType)
-                }
-                className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
-              >
-                {scheduleTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mt-3 flex gap-2">
-              <input
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Dinner, movie night, reminder..."
-                className="flex-1 rounded-full border border-black/10 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-orange-300"
-              />
-              <button
-                onClick={handleAddManualItem}
-                className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-bold text-white"
-              >
-                Add
-              </button>
+              </div>
             </div>
 
             <div className="mt-3 space-y-2">
@@ -933,7 +992,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={item.id}
-                      className="rounded-2xl border border-black/5 bg-slate-50 p-3"
+                      className="rounded-2xl border border-pink-100 bg-white p-3 shadow-sm"
                     >
                       {isEditing ? (
                         <div className="space-y-3">
