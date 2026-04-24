@@ -74,6 +74,10 @@ type ManualItem = {
   day: number;
   text: string;
   icon: string;
+  category?: string;
+  scheduleType?: ScheduleType;
+  sourceName?: string;
+  lastUpdated?: string;
 };
 
 type CalendarFilters = {
@@ -177,9 +181,17 @@ type EventsContextType = {
     month: number,
     day: number,
     text: string,
-    icon: string
+    icon: string,
+    category?: string,
+    scheduleType?: ScheduleType
   ) => void;
-  updateManualItem: (id: number, text: string, icon: string) => void;
+  updateManualItem: (
+    id: number,
+    text: string,
+    icon: string,
+    category?: string,
+    scheduleType?: ScheduleType
+  ) => void;
   removeManualItem: (id: number) => void;
   importEventsFromJson: (payload: ImportEventsPayload) => void;
   importFoodDealsFromJson: (payload: ImportFoodDealsPayload) => void;
@@ -493,10 +505,14 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     month: number,
     day: number,
     text: string,
-    icon: string
+    icon: string,
+    category = "Manual",
+    scheduleType: ScheduleType = "one_off"
   ) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    const reviewedDate = new Date().toISOString().slice(0, 10);
 
     setManualItems((prev) => [
       ...prev,
@@ -506,13 +522,25 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         day,
         text: trimmed,
         icon,
+        category,
+        scheduleType,
+        sourceName: "Manual Entry",
+        lastUpdated: reviewedDate,
       },
     ]);
   };
 
-  const updateManualItem = (id: number, text: string, icon: string) => {
+  const updateManualItem = (
+    id: number,
+    text: string,
+    icon: string,
+    category = "Manual",
+    scheduleType: ScheduleType = "one_off"
+  ) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    const reviewedDate = new Date().toISOString().slice(0, 10);
 
     setManualItems((prev) =>
       prev.map((item) =>
@@ -521,6 +549,10 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
               ...item,
               text: trimmed,
               icon,
+              category,
+              scheduleType,
+              sourceName: item.sourceName ?? "Manual Entry",
+              lastUpdated: reviewedDate,
             }
           : item
       )

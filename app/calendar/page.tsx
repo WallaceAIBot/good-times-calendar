@@ -3,6 +3,12 @@
 import { useMemo, useState } from "react";
 import { useEvents } from "../events-context";
 
+type ScheduleType =
+  | "recurring"
+  | "one_off"
+  | "seasonal"
+  | "schedule_driven";
+
 type CalendarItem = {
   id: number;
   type: "event" | "foodDeal" | "birthday" | "watchlist";
@@ -13,6 +19,10 @@ type CalendarItem = {
   month?: number;
   day?: number;
   personEmoji?: string;
+  scheduleType?: ScheduleType | "food_recurring";
+  sourceType?: string;
+  sourceName?: string;
+  lastUpdated?: string;
 };
 
 const weekdayNames = [
@@ -42,6 +52,26 @@ const monthNames = [
   "December",
 ];
 
+const manualEmojiOptions = ["📌", "🎂", "🍔", "🎉", "🎵", "🎤", "⚾", "❤️"];
+
+const manualCategoryOptions = [
+  "Manual",
+  "Date Night",
+  "Food",
+  "Family",
+  "Reminder",
+  "Community",
+  "Sports",
+  "Comedy",
+];
+
+const scheduleTypeOptions: { value: ScheduleType; label: string }[] = [
+  { value: "one_off", label: "One-Off" },
+  { value: "recurring", label: "Recurring" },
+  { value: "seasonal", label: "Seasonal" },
+  { value: "schedule_driven", label: "Schedule Driven" },
+];
+
 const foodDealDayToCalendarDay: Record<string, number> = {
   Mon: 2,
   Tue: 9,
@@ -55,8 +85,6 @@ const foodDealDayToCalendarDay: Record<string, number> = {
 const CURRENT_YEAR = 2026;
 const TODAY_MONTH_NUMBER = 4;
 const TODAY_DAY = 22;
-
-const manualEmojiOptions = ["📌", "🎂", "🍔", "🎉", "🎵", "🎤", "⚾", "❤️"];
 
 function getDaysInMonth(year: number, monthNumber: number) {
   return new Date(year, monthNumber, 0).getDate();
@@ -72,6 +100,102 @@ function getItemPriority(item: CalendarItem) {
   if (item.type === "foodDeal") return 2;
   if (item.type === "watchlist") return 3;
   return 4;
+}
+
+function getLifecycleInfo(item: CalendarItem, displayYear: number) {
+  if (item.type === "birthday") {
+    return {
+      label: "Birthday",
+      className: "bg-pink-100 text-pink-700",
+      warning: "",
+    };
+  }
+
+  if (item.type === "foodDeal" || item.scheduleType === "food_recurring") {
+    return {
+      label: "Weekly Recurring",
+      className: "bg-blue-100 text-blue-700",
+      warning: "",
+    };
+  }
+
+  if (item.type === "watchlist") {
+    return {
+      label: "Watchlist",
+      className: "bg-yellow-100 text-yellow-700",
+      warning: "",
+    };
+  }
+
+  if (item.scheduleType === "recurring") {
+    return {
+      label: "Recurring",
+      className: "bg-blue-100 text-blue-700",
+      warning: "",
+    };
+  }
+
+  if (item.scheduleType === "seasonal") {
+    return {
+      label: "Seasonal",
+      className: "bg-purple-100 text-purple-700",
+      warning: "",
+    };
+  }
+
+  if (item.scheduleType === "schedule_driven") {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const updated = item.lastUpdated
+      ? new Date(`${item.lastUpdated}T00:00:00`)
+      : today;
+    const diffDays = Math.floor(
+      (today.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays > 14) {
+      return {
+        label: "Schedule Driven",
+        className: "bg-amber-100 text-amber-700",
+        warning: "This may need a schedule re-check.",
+      };
+    }
+
+    return {
+      label: "Schedule Driven",
+      className: "bg-indigo-100 text-indigo-700",
+      warning: "",
+    };
+  }
+
+  if (item.scheduleType === "one_off") {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const eventDate = new Date(displayYear, (item.month ?? 1) - 1, item.day ?? 1);
+    const diffDays = Math.floor(
+      (today.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays > 0) {
+      return {
+        label: "One-Off",
+        className: "bg-red-100 text-red-700",
+        warning: "This one-off event date has passed.",
+      };
+    }
+
+    return {
+      label: "One-Off",
+      className: "bg-green-100 text-green-700",
+      warning: "",
+    };
+  }
+
+  return {
+    label: "Event",
+    className: "bg-slate-100 text-slate-700",
+    warning: "",
+  };
 }
 
 export default function CalendarPage() {
@@ -91,12 +215,19 @@ export default function CalendarPage() {
   const [displayYear, setDisplayYear] = useState(CURRENT_YEAR);
   const [displayMonthNumber, setDisplayMonthNumber] = useState(TODAY_MONTH_NUMBER);
   const [selectedDay, setSelectedDay] = useState(TODAY_DAY);
+
   const [manualInput, setManualInput] = useState("");
   const [manualEmoji, setManualEmoji] = useState("📌");
+  const [manualCategory, setManualCategory] = useState("Manual");
+  const [manualScheduleType, setManualScheduleType] =
+    useState<ScheduleType>("one_off");
 
   const [editingManualId, setEditingManualId] = useState<number | null>(null);
   const [editManualText, setEditManualText] = useState("");
   const [editManualEmoji, setEditManualEmoji] = useState("📌");
+  const [editManualCategory, setEditManualCategory] = useState("Manual");
+  const [editManualScheduleType, setEditManualScheduleType] =
+    useState<ScheduleType>("one_off");
 
   const currentMonthName = monthNames[displayMonthNumber - 1];
   const daysInMonth = getDaysInMonth(displayYear, displayMonthNumber);
@@ -114,6 +245,10 @@ export default function CalendarPage() {
           icon: event.icon ?? "🎉",
           month: event.month,
           day: event.day,
+          scheduleType: event.scheduleType,
+          sourceType: event.sourceType,
+          sourceName: event.sourceName,
+          lastUpdated: event.lastUpdated,
         }))
     : [];
 
@@ -127,6 +262,10 @@ export default function CalendarPage() {
           title: deal.title,
           details: deal.details,
           icon: deal.icon ?? "🍔",
+          scheduleType: "food_recurring",
+          sourceType: deal.sourceType,
+          sourceName: deal.sourceName,
+          lastUpdated: deal.lastUpdated,
         }))
     : [];
 
@@ -145,6 +284,10 @@ export default function CalendarPage() {
             icon: matchingDeal.icon ?? "🍸",
             month: displayMonthNumber,
             day: foodDealDayToCalendarDay[selection.day],
+            scheduleType: "food_recurring" as const,
+            sourceType: matchingDeal.sourceType,
+            sourceName: matchingDeal.sourceName,
+            lastUpdated: matchingDeal.lastUpdated,
           };
         })
         .filter(Boolean) as CalendarItem[]
@@ -183,6 +326,10 @@ export default function CalendarPage() {
           icon: event.icon ?? "⭐",
           month: event.month,
           day: event.day,
+          scheduleType: event.scheduleType,
+          sourceType: event.sourceType,
+          sourceName: event.sourceName,
+          lastUpdated: event.lastUpdated,
         }))
     : [];
 
@@ -249,25 +396,48 @@ export default function CalendarPage() {
   }, [visibleManualItems]);
 
   const handleAddManualItem = () => {
-    addManualItem(displayMonthNumber, selectedDay, manualInput, manualEmoji);
+    addManualItem(
+      displayMonthNumber,
+      selectedDay,
+      manualInput,
+      manualEmoji,
+      manualCategory,
+      manualScheduleType
+    );
     setManualInput("");
   };
 
-  const startEditingManual = (id: number, text: string, icon: string) => {
+  const startEditingManual = (
+    id: number,
+    text: string,
+    icon: string,
+    category?: string,
+    scheduleType?: ScheduleType
+  ) => {
     setEditingManualId(id);
     setEditManualText(text);
     setEditManualEmoji(icon);
+    setEditManualCategory(category ?? "Manual");
+    setEditManualScheduleType(scheduleType ?? "one_off");
   };
 
   const cancelEditingManual = () => {
     setEditingManualId(null);
     setEditManualText("");
     setEditManualEmoji("📌");
+    setEditManualCategory("Manual");
+    setEditManualScheduleType("one_off");
   };
 
   const saveEditingManual = () => {
     if (editingManualId === null) return;
-    updateManualItem(editingManualId, editManualText, editManualEmoji);
+    updateManualItem(
+      editingManualId,
+      editManualText,
+      editManualEmoji,
+      editManualCategory,
+      editManualScheduleType
+    );
     cancelEditingManual();
   };
 
@@ -504,43 +674,71 @@ export default function CalendarPage() {
                   Nothing scheduled yet for this day.
                 </div>
               ) : (
-                selectedDayEvents.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-3xl border border-black/5 bg-slate-50 p-4 shadow-sm"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
-                        {item.category}
+                selectedDayEvents.map((item) => {
+                  const lifecycle = getLifecycleInfo(item, displayYear);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-3xl border border-black/5 bg-slate-50 p-4 shadow-sm"
+                    >
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
+                          {item.category}
+                        </p>
+
+                        <div className="flex flex-wrap gap-1">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${lifecycle.className}`}
+                          >
+                            {lifecycle.label}
+                          </span>
+
+                          {item.sourceType === "imported" ? (
+                            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                              Imported
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <h4 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+                        {item.type === "birthday" ? "🎂" : item.icon} {item.title}
+                        {item.type === "birthday" && item.personEmoji
+                          ? ` ${item.personEmoji}`
+                          : ""}
+                      </h4>
+
+                      <p className="mt-1 text-sm font-medium text-slate-700">
+                        {item.details}
                       </p>
 
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                          item.type === "birthday"
-                            ? "bg-pink-100 text-pink-700"
-                            : item.type === "event"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {item.type === "birthday"
-                          ? `${item.personEmoji ?? "🎂"} Birthday`
-                          : item.type === "event"
-                          ? "🎉 Event"
-                          : "🍔 Food Deal"}
-                      </span>
+                      {lifecycle.warning ? (
+                        <div className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+                          <p className="text-xs font-semibold text-amber-700">
+                            {lifecycle.warning}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {item.sourceName ? (
+                        <div className="mt-2 rounded-2xl bg-white px-3 py-2 ring-1 ring-black/5">
+                          <p className="text-[11px] text-slate-500">
+                            Source:{" "}
+                            <span className="font-semibold text-slate-700">
+                              {item.sourceName}
+                            </span>
+                          </p>
+                          {item.lastUpdated ? (
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              Last reviewed/imported: {item.lastUpdated}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
-
-                    <h4 className="text-lg font-extrabold text-slate-900 sm:text-xl">
-                      {item.type === "birthday" ? "🎂" : item.icon} {item.title}
-                      {item.type === "birthday" && item.personEmoji ? ` ${item.personEmoji}` : ""}
-                    </h4>
-
-                    <p className="mt-1 text-sm font-medium text-slate-700">
-                      {item.details}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -556,30 +754,44 @@ export default function CalendarPage() {
                   No starred watchlist items for this day.
                 </div>
               ) : (
-                selectedDayWatchlist.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-yellow-700">
-                        {item.category}
+                selectedDayWatchlist.map((item) => {
+                  const lifecycle = getLifecycleInfo(item, displayYear);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm"
+                    >
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-yellow-700">
+                          {item.category}
+                        </p>
+
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${lifecycle.className}`}
+                        >
+                          {lifecycle.label}
+                        </span>
+                      </div>
+
+                      <h4 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+                        {item.icon} {item.title}
+                      </h4>
+
+                      <p className="mt-1 text-sm font-medium text-slate-700">
+                        {item.details}
                       </p>
 
-                      <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-yellow-700">
-                        ⭐ Watchlist
-                      </span>
+                      {lifecycle.warning ? (
+                        <div className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+                          <p className="text-xs font-semibold text-amber-700">
+                            {lifecycle.warning}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
-
-                    <h4 className="text-lg font-extrabold text-slate-900 sm:text-xl">
-                      {item.icon} {item.title}
-                    </h4>
-
-                    <p className="mt-1 text-sm font-medium text-slate-700">
-                      {item.details}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -603,6 +815,34 @@ export default function CalendarPage() {
                   {emoji}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <select
+                value={manualCategory}
+                onChange={(e) => setManualCategory(e.target.value)}
+                className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
+              >
+                {manualCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={manualScheduleType}
+                onChange={(e) =>
+                  setManualScheduleType(e.target.value as ScheduleType)
+                }
+                className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
+              >
+                {scheduleTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="mt-3 flex gap-2">
@@ -632,6 +872,24 @@ export default function CalendarPage() {
               ) : (
                 selectedDayManualItems.map((item) => {
                   const isEditing = editingManualId === item.id;
+                  const manualCalendarItem: CalendarItem = {
+                    id: item.id,
+                    type: "event",
+                    category: item.category ?? "Manual",
+                    title: item.text,
+                    details: "Manual calendar item",
+                    icon: item.icon,
+                    month: item.month,
+                    day: item.day,
+                    scheduleType: item.scheduleType ?? "one_off",
+                    sourceType: "manual",
+                    sourceName: item.sourceName ?? "Manual Entry",
+                    lastUpdated: item.lastUpdated,
+                  };
+                  const lifecycle = getLifecycleInfo(
+                    manualCalendarItem,
+                    displayYear
+                  );
 
                   return (
                     <div
@@ -654,6 +912,38 @@ export default function CalendarPage() {
                                 {emoji}
                               </button>
                             ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={editManualCategory}
+                              onChange={(e) =>
+                                setEditManualCategory(e.target.value)
+                              }
+                              className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
+                            >
+                              {manualCategoryOptions.map((category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              value={editManualScheduleType}
+                              onChange={(e) =>
+                                setEditManualScheduleType(
+                                  e.target.value as ScheduleType
+                                )
+                              }
+                              className="rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-300"
+                            >
+                              {scheduleTypeOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
                           </div>
 
                           <input
@@ -679,28 +969,62 @@ export default function CalendarPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <span className="rounded-full bg-purple-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-purple-700">
-                              {item.icon} Manual
-                            </span>
-                            <p className="text-sm font-medium text-slate-800">{item.text}</p>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-purple-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-purple-700">
+                                {item.icon} {item.category ?? "Manual"}
+                              </span>
+
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${lifecycle.className}`}
+                              >
+                                {lifecycle.label}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() =>
+                                  startEditingManual(
+                                    item.id,
+                                    item.text,
+                                    item.icon,
+                                    item.category,
+                                    item.scheduleType
+                                  )
+                                }
+                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => removeManualItem(item.id)}
+                                className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => startEditingManual(item.id, item.text, item.icon)}
-                              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => removeManualItem(item.id)}
-                              className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700"
-                            >
-                              Remove
-                            </button>
-                          </div>
+                          <p className="text-sm font-medium text-slate-800">
+                            {item.text}
+                          </p>
+
+                          {lifecycle.warning ? (
+                            <div className="rounded-2xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+                              <p className="text-xs font-semibold text-amber-700">
+                                {lifecycle.warning}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <p className="text-[11px] text-slate-500">
+                            Source: {item.sourceName ?? "Manual Entry"}
+                            {item.lastUpdated
+                              ? ` · Updated ${item.lastUpdated}`
+                              : ""}
+                          </p>
                         </div>
                       )}
                     </div>
