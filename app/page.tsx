@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useEvents } from "./events-context";
 
 const weekdayShortNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 const weekdayLongNames = [
   "Sunday",
   "Monday",
@@ -14,6 +15,7 @@ const weekdayLongNames = [
   "Friday",
   "Saturday",
 ];
+
 const monthNames = [
   "January",
   "February",
@@ -34,8 +36,14 @@ type DashboardItem = {
   details: string;
   icon: string;
   type: "birthday" | "event" | "food" | "manual";
+  category?: string;
   sortDate?: Date;
   isPreferenceMatch?: boolean;
+  matchReason?: string;
+  scheduleType?: string;
+  sourceType?: string;
+  sourceName?: string;
+  lastUpdated?: string;
 };
 
 function getNextOccurrence(month: number, day: number, now: Date) {
@@ -74,22 +82,26 @@ function getFoodTypeFromDeal(title: string, details: string) {
     combined.includes("taco") ||
     combined.includes("mex") ||
     combined.includes("burrito")
-  )
+  ) {
     return "Mexican";
+  }
   if (
     combined.includes("sushi") ||
     combined.includes("ramen") ||
     combined.includes("asian")
-  )
+  ) {
     return "Asian";
+  }
   if (
     combined.includes("bar") ||
     combined.includes("happy hour") ||
     combined.includes("taproom")
-  )
+  ) {
     return "Bars";
-  if (combined.includes("coffee") || combined.includes("espresso"))
+  }
+  if (combined.includes("coffee") || combined.includes("espresso")) {
     return "Coffee";
+  }
 
   return "";
 }
@@ -97,7 +109,7 @@ function getFoodTypeFromDeal(title: string, details: string) {
 function getEventPreferenceScore(
   category: string,
   preferredCategories: string[]
-): number {
+) {
   return preferredCategories.includes(category) ? 2 : 0;
 }
 
@@ -105,9 +117,80 @@ function getFoodPreferenceScore(
   title: string,
   details: string,
   preferredFood: string[]
-): number {
+) {
   const foodType = getFoodTypeFromDeal(title, details);
   return foodType && preferredFood.includes(foodType) ? 2 : 0;
+}
+
+function getEventMatchReason(category: string, preferredCategories: string[]) {
+  if (preferredCategories.includes(category)) {
+    return `Matches your ${category} preference`;
+  }
+
+  return "";
+}
+
+function getFoodMatchReason(
+  title: string,
+  details: string,
+  preferredFood: string[]
+) {
+  const foodType = getFoodTypeFromDeal(title, details);
+
+  if (foodType && preferredFood.includes(foodType)) {
+    return `Matches your ${foodType} food preference`;
+  }
+
+  return "";
+}
+
+function getScheduleBadge(scheduleType?: string, itemType?: string) {
+  if (itemType === "birthday") {
+    return {
+      label: "Birthday",
+      className: "bg-pink-100 text-pink-700",
+    };
+  }
+
+  if (itemType === "food") {
+    return {
+      label: "Weekly Recurring",
+      className: "bg-blue-100 text-blue-700",
+    };
+  }
+
+  if (scheduleType === "recurring") {
+    return {
+      label: "Recurring",
+      className: "bg-blue-100 text-blue-700",
+    };
+  }
+
+  if (scheduleType === "one_off") {
+    return {
+      label: "One-Off",
+      className: "bg-green-100 text-green-700",
+    };
+  }
+
+  if (scheduleType === "seasonal") {
+    return {
+      label: "Seasonal",
+      className: "bg-purple-100 text-purple-700",
+    };
+  }
+
+  if (scheduleType === "schedule_driven") {
+    return {
+      label: "Schedule Driven",
+      className: "bg-indigo-100 text-indigo-700",
+    };
+  }
+
+  return {
+    label: "Event",
+    className: "bg-slate-100 text-slate-700",
+  };
 }
 
 export default function HomePage() {
@@ -128,7 +211,9 @@ export default function HomePage() {
   const todayMonth = now.getMonth() + 1;
   const todayDay = now.getDate();
   const todayWeekdayShort = weekdayShortNames[now.getDay()];
-  const todayLabel = `${weekdayLongNames[now.getDay()]}, ${monthNames[now.getMonth()]} ${todayDay}`;
+  const todayLabel = `${weekdayLongNames[now.getDay()]}, ${
+    monthNames[now.getMonth()]
+  } ${todayDay}`;
 
   const preferredCategories = settings.preferredCategories ?? [];
   const preferredFood = settings.preferredFood ?? [];
@@ -148,28 +233,57 @@ export default function HomePage() {
   const todayFoodDeals = useMemo(() => {
     const regularDeals = foodDeals
       .filter((deal) => deal.days.includes(todayWeekdayShort))
-      .map((deal) => ({
-        title: deal.title,
-        details: deal.details,
-        icon: deal.icon ?? "🍽️",
-        score: getFoodPreferenceScore(deal.title, deal.details, preferredFood),
-      }));
+      .map((deal) => {
+        const score = getFoodPreferenceScore(
+          deal.title,
+          deal.details,
+          preferredFood
+        );
+
+        return {
+          title: deal.title,
+          details: deal.details,
+          icon: deal.icon ?? "🍽️",
+          score,
+          matchReason: getFoodMatchReason(
+            deal.title,
+            deal.details,
+            preferredFood
+          ),
+          sourceType: deal.sourceType,
+          sourceName: deal.sourceName,
+          lastUpdated: deal.lastUpdated,
+        };
+      });
 
     const happyHourDeals = foodDealCalendarSelections
       .filter((selection) => selection.day === todayWeekdayShort)
       .map((selection) => {
-        const matchingDeal = foodDeals.find((deal) => deal.id === selection.dealId);
+        const matchingDeal = foodDeals.find(
+          (deal) => deal.id === selection.dealId
+        );
+
         if (!matchingDeal) return null;
+
+        const score = getFoodPreferenceScore(
+          matchingDeal.title,
+          matchingDeal.details,
+          preferredFood
+        );
 
         return {
           title: matchingDeal.title,
           details: `${selection.day} Happy Hour · ${matchingDeal.details}`,
           icon: matchingDeal.icon ?? "🍸",
-          score: getFoodPreferenceScore(
+          score,
+          matchReason: getFoodMatchReason(
             matchingDeal.title,
             matchingDeal.details,
             preferredFood
           ),
+          sourceType: matchingDeal.sourceType,
+          sourceName: matchingDeal.sourceName,
+          lastUpdated: matchingDeal.lastUpdated,
         };
       })
       .filter(Boolean) as {
@@ -177,9 +291,15 @@ export default function HomePage() {
       details: string;
       icon: string;
       score: number;
+      matchReason: string;
+      sourceType?: string;
+      sourceName?: string;
+      lastUpdated?: string;
     }[];
 
-    return [...regularDeals, ...happyHourDeals].sort((a, b) => b.score - a.score);
+    return [...regularDeals, ...happyHourDeals].sort(
+      (a, b) => b.score - a.score
+    );
   }, [foodDeals, foodDealCalendarSelections, todayWeekdayShort, preferredFood]);
 
   const todayItems: DashboardItem[] = [
@@ -188,14 +308,21 @@ export default function HomePage() {
       details: `Turning ${now.getFullYear() - birthday.year}`,
       icon: "🎂",
       type: "birthday" as const,
+      scheduleType: "birthday",
     })),
     ...todayEvents.map((event) => ({
       title: event.title,
       details: event.details,
       icon: event.icon ?? "🎉",
       type: "event" as const,
+      category: event.category,
       isPreferenceMatch:
         getEventPreferenceScore(event.category, preferredCategories) > 0,
+      matchReason: getEventMatchReason(event.category, preferredCategories),
+      scheduleType: event.scheduleType,
+      sourceType: event.sourceType,
+      sourceName: event.sourceName,
+      lastUpdated: event.lastUpdated,
     })),
     ...todayFoodDeals.map((deal) => ({
       title: deal.title,
@@ -203,6 +330,11 @@ export default function HomePage() {
       icon: deal.icon,
       type: "food" as const,
       isPreferenceMatch: deal.score > 0,
+      matchReason: deal.matchReason,
+      scheduleType: "recurring",
+      sourceType: deal.sourceType,
+      sourceName: deal.sourceName,
+      lastUpdated: deal.lastUpdated,
     })),
     ...todayManualItems.map((item) => ({
       title: item.text,
@@ -214,14 +346,27 @@ export default function HomePage() {
 
   const tonightSuggestion = useMemo(() => {
     const plannedEvent = todayEvents.find((event) => event.calendar);
+
     if (plannedEvent) {
+      const score = getEventPreferenceScore(
+        plannedEvent.category,
+        preferredCategories
+      );
+
       return {
         title: plannedEvent.title,
         details: "Already on your calendar for today",
         icon: plannedEvent.icon ?? "🎉",
         badge: "Planned Tonight",
-        isPreferenceMatch:
-          getEventPreferenceScore(plannedEvent.category, preferredCategories) > 0,
+        isPreferenceMatch: score > 0,
+        matchReason: getEventMatchReason(
+          plannedEvent.category,
+          preferredCategories
+        ),
+        scheduleType: plannedEvent.scheduleType,
+        sourceType: plannedEvent.sourceType,
+        sourceName: plannedEvent.sourceName,
+        lastUpdated: plannedEvent.lastUpdated,
       };
     }
 
@@ -246,6 +391,14 @@ export default function HomePage() {
             ? "Recommended for You"
             : "Watchlist Pick",
         isPreferenceMatch: starredRanked[0].preferenceScore > 0,
+        matchReason: getEventMatchReason(
+          starredRanked[0].category,
+          preferredCategories
+        ),
+        scheduleType: starredRanked[0].scheduleType,
+        sourceType: starredRanked[0].sourceType,
+        sourceName: starredRanked[0].sourceName,
+        lastUpdated: starredRanked[0].lastUpdated,
       };
     }
 
@@ -259,6 +412,11 @@ export default function HomePage() {
             ? "Recommended for You"
             : "Easy Tonight Option",
         isPreferenceMatch: todayFoodDeals[0].score > 0,
+        matchReason: todayFoodDeals[0].matchReason,
+        scheduleType: "recurring",
+        sourceType: todayFoodDeals[0].sourceType,
+        sourceName: todayFoodDeals[0].sourceName,
+        lastUpdated: todayFoodDeals[0].lastUpdated,
       };
     }
 
@@ -276,19 +434,30 @@ export default function HomePage() {
         if (b.preferenceScore !== a.preferenceScore) {
           return b.preferenceScore - a.preferenceScore;
         }
+
         return a.eventDate.getTime() - b.eventDate.getTime();
       })[0];
 
     if (nextRankedStarred) {
       return {
         title: nextRankedStarred.title,
-        details: `${monthNames[nextRankedStarred.month - 1]} ${nextRankedStarred.day} · ${nextRankedStarred.details}`,
+        details: `${monthNames[nextRankedStarred.month - 1]} ${
+          nextRankedStarred.day
+        } · ${nextRankedStarred.details}`,
         icon: nextRankedStarred.icon ?? "⭐",
         badge:
           nextRankedStarred.preferenceScore > 0
             ? "Recommended for You"
             : "Next Good Option",
         isPreferenceMatch: nextRankedStarred.preferenceScore > 0,
+        matchReason: getEventMatchReason(
+          nextRankedStarred.category,
+          preferredCategories
+        ),
+        scheduleType: nextRankedStarred.scheduleType,
+        sourceType: nextRankedStarred.sourceType,
+        sourceName: nextRankedStarred.sourceName,
+        lastUpdated: nextRankedStarred.lastUpdated,
       };
     }
 
@@ -298,6 +467,11 @@ export default function HomePage() {
       icon: "✨",
       badge: "Open Night",
       isPreferenceMatch: false,
+      matchReason: "",
+      scheduleType: "",
+      sourceType: "",
+      sourceName: "",
+      lastUpdated: "",
     };
   }, [todayEvents, todayFoodDeals, events, now, preferredCategories]);
 
@@ -310,6 +484,7 @@ export default function HomePage() {
         now.getMonth(),
         now.getDate() + i
       );
+
       const day = candidate.getDay();
 
       if (day === 6 || day === 0) {
@@ -334,20 +509,34 @@ export default function HomePage() {
             icon: "🎂",
             type: "birthday",
             sortDate: date,
+            scheduleType: "birthday",
           });
         });
 
       events
         .filter((event) => event.month === month && event.day === day)
         .forEach((event) => {
+          const score = getEventPreferenceScore(
+            event.category,
+            preferredCategories
+          );
+
           items.push({
             title: event.title,
             details: `${formatMonthDay(date)} · ${event.details}`,
             icon: event.icon ?? "🎉",
             type: "event",
+            category: event.category,
             sortDate: date,
-            isPreferenceMatch:
-              getEventPreferenceScore(event.category, preferredCategories) > 0,
+            isPreferenceMatch: score > 0,
+            matchReason: getEventMatchReason(
+              event.category,
+              preferredCategories
+            ),
+            scheduleType: event.scheduleType,
+            sourceType: event.sourceType,
+            sourceName: event.sourceName,
+            lastUpdated: event.lastUpdated,
           });
         });
 
@@ -368,17 +557,32 @@ export default function HomePage() {
       .sort((a, b) => {
         const aTime = a.sortDate?.getTime() ?? 0;
         const bTime = b.sortDate?.getTime() ?? 0;
+
         if (aTime !== bTime) return aTime - bTime;
 
         const aPref = a.isPreferenceMatch ? 1 : 0;
         const bPref = b.isPreferenceMatch ? 1 : 0;
+
         if (bPref !== aPref) return bPref - aPref;
 
         const priority =
-          (a.type === "birthday" ? 0 : a.type === "event" ? 1 : a.type === "food" ? 2 : 3) -
-          (b.type === "birthday" ? 0 : b.type === "event" ? 1 : b.type === "food" ? 2 : 3);
+          (a.type === "birthday"
+            ? 0
+            : a.type === "event"
+            ? 1
+            : a.type === "food"
+            ? 2
+            : 3) -
+          (b.type === "birthday"
+            ? 0
+            : b.type === "event"
+            ? 1
+            : b.type === "food"
+            ? 2
+            : 3);
 
         if (priority !== 0) return priority;
+
         return a.title.localeCompare(b.title);
       })
       .slice(0, 4);
@@ -394,23 +598,17 @@ export default function HomePage() {
       .slice(0, 3);
   }, [birthdays, now]);
 
-  const featuredEvents = useMemo(() => {
-    return [...events]
-      .map((event) => ({
-        ...event,
-        preferenceScore: getEventPreferenceScore(
-          event.category,
-          preferredCategories
-        ),
-      }))
-      .sort((a, b) => {
-        if (b.preferenceScore !== a.preferenceScore) {
-          return b.preferenceScore - a.preferenceScore;
-        }
-        return Number(b.featured) - Number(a.featured);
-      })
-      .slice(0, 3);
-  }, [events, preferredCategories]);
+  const personalizedSummary = [
+    preferredCategories.length > 0
+      ? `Categories: ${preferredCategories.join(", ")}`
+      : "",
+    preferredFood.length > 0 ? `Food: ${preferredFood.join(", ")}` : "",
+  ].filter(Boolean);
+
+  const tonightScheduleBadge = getScheduleBadge(
+    tonightSuggestion.scheduleType,
+    tonightSuggestion.scheduleType === "recurring" ? "food" : undefined
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-pink-50 text-slate-900">
@@ -429,23 +627,20 @@ export default function HomePage() {
           </p>
         </header>
 
-        {(settings.preferredCategories.length > 0 || settings.preferredFood.length > 0) && (
+        {personalizedSummary.length > 0 ? (
           <section className="mb-6 rounded-[1.6rem] bg-white/85 p-4 shadow-sm ring-1 ring-black/5">
             <p className="text-xs font-bold uppercase tracking-wide text-purple-600">
               Personalized For You
             </p>
-            <p className="mt-1 text-sm text-slate-700">
-              {settings.preferredCategories.length > 0
-                ? `Categories: ${settings.preferredCategories.join(", ")}`
-                : "No preferred categories yet."}
-            </p>
-            <p className="mt-1 text-sm text-slate-700">
-              {settings.preferredFood.length > 0
-                ? `Food: ${settings.preferredFood.join(", ")}`
-                : "No preferred food types yet."}
-            </p>
+            <div className="mt-2 space-y-1">
+              {personalizedSummary.map((line) => (
+                <p key={line} className="text-sm text-slate-700">
+                  {line}
+                </p>
+              ))}
+            </div>
           </section>
-        )}
+        ) : null}
 
         <section className="mb-6 rounded-[2rem] bg-white/85 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
@@ -472,31 +667,61 @@ export default function HomePage() {
                 Nothing is scheduled for today yet.
               </div>
             ) : (
-              todayItems.slice(0, 4).map((item, index) => (
-                <div
-                  key={`${item.title}-${index}`}
-                  className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-xl">{item.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-extrabold text-slate-900">
-                          {item.title}
-                        </h3>
-                        {item.isPreferenceMatch ? (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                            Match
+              todayItems.slice(0, 4).map((item, index) => {
+                const scheduleBadge = getScheduleBadge(
+                  item.scheduleType,
+                  item.type
+                );
+
+                return (
+                  <div
+                    key={`${item.title}-${index}`}
+                    className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{item.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-extrabold text-slate-900">
+                            {item.title}
+                          </h3>
+
+                          {item.isPreferenceMatch ? (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                              Match
+                            </span>
+                          ) : null}
+
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${scheduleBadge.className}`}
+                          >
+                            {scheduleBadge.label}
                           </span>
+                        </div>
+
+                        <p className="mt-1 text-sm font-medium text-slate-700">
+                          {item.details}
+                        </p>
+
+                        {item.matchReason ? (
+                          <p className="mt-1 text-xs font-semibold text-blue-700">
+                            Why match: {item.matchReason}
+                          </p>
+                        ) : null}
+
+                        {item.sourceType === "imported" && item.sourceName ? (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Imported from {item.sourceName}
+                            {item.lastUpdated
+                              ? ` · Reviewed ${item.lastUpdated}`
+                              : ""}
+                          </p>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-sm font-medium text-slate-700">
-                        {item.details}
-                      </p>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
@@ -559,16 +784,45 @@ export default function HomePage() {
           <div className="mt-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xl">{tonightSuggestion.icon}</span>
-              <h3 className="text-xl font-extrabold">{tonightSuggestion.title}</h3>
+              <h3 className="text-xl font-extrabold">
+                {tonightSuggestion.title}
+              </h3>
+
               {tonightSuggestion.isPreferenceMatch ? (
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
                   Preference Match
                 </span>
               ) : null}
+
+              {tonightSuggestion.scheduleType ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tonightScheduleBadge.className}`}
+                >
+                  {tonightScheduleBadge.label}
+                </span>
+              ) : null}
             </div>
+
             <p className="mt-1 text-sm font-medium text-slate-700">
               {tonightSuggestion.details}
             </p>
+
+            {tonightSuggestion.matchReason ? (
+              <p className="mt-1 text-xs font-semibold text-blue-700">
+                Why this fits: {tonightSuggestion.matchReason}
+              </p>
+            ) : null}
+
+            {tonightSuggestion.sourceType === "imported" &&
+            tonightSuggestion.sourceName ? (
+              <p className="mt-1 text-[11px] text-slate-500">
+                Imported from {tonightSuggestion.sourceName}
+                {tonightSuggestion.lastUpdated
+                  ? ` · Reviewed ${tonightSuggestion.lastUpdated}`
+                  : ""}
+              </p>
+            ) : null}
+
             <div className="mt-3 inline-flex rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-green-700">
               {tonightSuggestion.badge}
             </div>
@@ -591,36 +845,67 @@ export default function HomePage() {
                 Nothing is lined up for this weekend yet.
               </div>
             ) : (
-              weekendItems.map((item, index) => (
-                <div
-                  key={`${item.title}-${index}`}
-                  className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-xl">{item.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-extrabold text-slate-900">
-                          {item.title}
-                        </h3>
-                        {item.isPreferenceMatch ? (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                            Match
+              weekendItems.map((item, index) => {
+                const scheduleBadge = getScheduleBadge(
+                  item.scheduleType,
+                  item.type
+                );
+
+                return (
+                  <div
+                    key={`${item.title}-${index}`}
+                    className="rounded-3xl bg-orange-50/70 p-4 ring-1 ring-orange-100"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{item.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-extrabold text-slate-900">
+                            {item.title}
+                          </h3>
+
+                          {item.isPreferenceMatch ? (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                              Match
+                            </span>
+                          ) : null}
+
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${scheduleBadge.className}`}
+                          >
+                            {scheduleBadge.label}
                           </span>
+                        </div>
+
+                        <p className="mt-1 text-sm font-medium text-slate-700">
+                          {item.details}
+                        </p>
+
+                        {item.sortDate ? (
+                          <p className="mt-1 text-xs font-bold uppercase tracking-wide text-orange-600">
+                            {getDayBadgeLabel(item.sortDate, now)}
+                          </p>
+                        ) : null}
+
+                        {item.matchReason ? (
+                          <p className="mt-1 text-xs font-semibold text-blue-700">
+                            Why match: {item.matchReason}
+                          </p>
+                        ) : null}
+
+                        {item.sourceType === "imported" && item.sourceName ? (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Imported from {item.sourceName}
+                            {item.lastUpdated
+                              ? ` · Reviewed ${item.lastUpdated}`
+                              : ""}
+                          </p>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-sm font-medium text-slate-700">
-                        {item.details}
-                      </p>
-                      {item.sortDate ? (
-                        <p className="mt-1 text-xs font-bold uppercase tracking-wide text-orange-600">
-                          {getDayBadgeLabel(item.sortDate, now)}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
@@ -630,10 +915,7 @@ export default function HomePage() {
             <p className="text-sm font-bold uppercase tracking-wide text-pink-600">
               Upcoming Birthdays
             </p>
-            <Link
-              href="/birthdays"
-              className="text-sm font-bold text-orange-600"
-            >
+            <Link href="/birthdays" className="text-sm font-bold text-orange-600">
               View all
             </Link>
           </div>
