@@ -216,6 +216,7 @@ export default function CalendarPage() {
     addManualItem,
     updateManualItem,
     removeManualItem,
+    moveManualItem,
   } = useEvents();
 
   const todayInfo = useMemo(() => getTodayInfo(), []);
@@ -1127,6 +1128,20 @@ export default function CalendarPage() {
                                 }
                                 className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
                               >
+                                <button
+                                  onClick={() => moveManualItem(item.id, "up")}
+                                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                                >
+                                  ↑
+                                </button>
+                              
+                                <button
+                                  onClick={() => moveManualItem(item.id, "down")}
+                                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                                >
+                                  ↓
+                                </button>
+                                
                                 Edit
                               </button>
                               <button

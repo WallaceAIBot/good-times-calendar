@@ -193,6 +193,7 @@ type EventsContextType = {
     scheduleType?: ScheduleType
   ) => void;
   removeManualItem: (id: number) => void;
+  moveManualItem: (id: number, direction: "up" | "down") => void;
   importEventsFromJson: (payload: ImportEventsPayload) => void;
   importFoodDealsFromJson: (payload: ImportFoodDealsPayload) => void;
   clearImportedEvents: () => void;
@@ -563,6 +564,22 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     setManualItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const moveManualItem = (id: number, direction: "up" | "down") => {
+  setManualItems((prev) => {
+    const index = prev.findIndex((item) => item.id === id);
+    if (index === -1) return prev;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+
+    const next = [...prev];
+    const temp = next[index];
+    next[index] = next[targetIndex];
+    next[targetIndex] = temp;
+
+    return next;
+  });
+};
   const importEventsFromJson = (payload: ImportEventsPayload) => {
     const importedAt = new Date().toISOString().slice(0, 10);
 
@@ -796,6 +813,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         addManualItem,
         updateManualItem,
         removeManualItem,
+        moveManualItem,
         importEventsFromJson,
         importFoodDealsFromJson,
         clearImportedEvents,
