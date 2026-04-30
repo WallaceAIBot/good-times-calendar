@@ -1115,43 +1115,53 @@ export default function CalendarPage() {
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                onClick={() =>
-                                  startEditingManual(
-                                    item.id,
-                                    item.text,
-                                    item.icon,
-                                    item.category,
-                                    item.scheduleType
-                                  )
-                                }
-                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                              >
-                                <button
-                                  onClick={() => moveManualItem(item.id, "up")}
-                                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                                >
-                                  ↑
-                                </button>
-                              
-                                <button
-                                  onClick={() => moveManualItem(item.id, "down")}
-                                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                                >
-                                  ↓
-                                </button>
-                                
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => removeManualItem(item.id)}
-                                className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
+<div className="flex flex-wrap gap-2">
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      moveManualItem(item.id, "up");
+    }}
+    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+  >
+    ↑
+  </button>
+
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      moveManualItem(item.id, "down");
+    }}
+    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+  >
+    ↓
+  </button>
+
+  <button
+    type="button"
+    onClick={() =>
+      startEditingManual(
+        item.id,
+        item.text,
+        item.icon,
+        item.category,
+        item.scheduleType
+      )
+    }
+    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+  >
+    Edit
+  </button>
+
+  <button
+    type="button"
+    onClick={() => removeManualItem(item.id)}
+    className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700"
+  >
+    Remove
+  </button>
+</div>                          </div>
 
                           <p className="text-sm font-medium text-slate-800">
                             {item.text}
