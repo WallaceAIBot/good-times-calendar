@@ -89,6 +89,7 @@ export default function ImportPage() {
     clearImportedFoodDeals,
     clearImportedSource,
     addAllImportedEventsToCalendar,
+    addImportedSourceToCalendar,
   } = useEvents();
 
   const [eventsJson, setEventsJson] = useState(sampleEventsJson);
@@ -302,7 +303,7 @@ export default function ImportPage() {
   onClick={addAllImportedEventsToCalendar}
   className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
 >
-  Add ALL Imported Events to Calendar
+  Add ALL to Calendar
 </button>
               </div>
             </div>

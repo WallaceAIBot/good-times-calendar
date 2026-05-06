@@ -200,6 +200,7 @@ type EventsContextType = {
   clearImportedFoodDeals: () => void;
   clearImportedSource: (sourceName: string) => void;
   addAllImportedEventsToCalendar: () => void;
+  addImportedSourceToCalendar: (sourceName: string) => void;
 };
 
 const EVENTS_KEY = "good-times-calendar-events-v9";
@@ -687,6 +688,19 @@ const addAllImportedEventsToCalendar = () => {
   );
 };
 
+const addImportedSourceToCalendar = (sourceName: string) => {
+  setEvents((prev) =>
+    prev.map((event) =>
+      event.sourceType === "imported" && event.sourceName === sourceName
+        ? {
+            ...event,
+            calendar: true,
+          }
+        : event
+    )
+  );
+};
+
   const starredCount = useMemo(
     () => events.filter((event) => event.saved).length,
     [events]
@@ -833,6 +847,7 @@ const addAllImportedEventsToCalendar = () => {
         clearImportedFoodDeals,
         clearImportedSource,
         addAllImportedEventsToCalendar,
+        addImportedSourceToCalendar,
       }}
     >
       {children}
