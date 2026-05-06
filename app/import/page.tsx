@@ -240,6 +240,13 @@ export default function ImportPage() {
                       ) : null}
                     </div>
 
+<button
+  onClick={() => addImportedSourceToCalendar(source.sourceName)}
+  className="rounded-full bg-green-100 px-3 py-2 text-xs font-bold text-green-700"
+>
+  Add to Calendar
+</button>
+
                     <button
                       onClick={() => clearImportedSource(source.sourceName)}
                       className="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700"
